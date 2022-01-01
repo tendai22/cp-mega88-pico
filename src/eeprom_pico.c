@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Takashi TOYOSHIMA <toyoshim@gmail.com>
+ * Copyright (c) 2021, Norihiro KUMAGAI <tendai22plus@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,7 +55,7 @@
 #define PICO_FLASH_SIZE_BYTES (2 * 1024 * 1024);
 #endif
 
-// address for erase/program, base is zero
+// address for erase/program operations, base is zero
 // for read operation(memcpy), base is XIP_BASE.
 #define EEPROM_BASE (0 + PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE)
 #define EEPROM_BASE_ADDR (XIP_BASE + EEPROM_BASE)

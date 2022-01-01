@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Takashi TOYOSHIMA <toyoshim@gmail.com>
+ * Copyright (c) 2021, Norihiro KUMAGAI <tendai22plus@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,8 +43,6 @@
 #define UART_TX_PIN 16
 #define UART_RX_PIN 17
 
-//static int fifo_flag = -1;
-
 static void
 sleep
 (void)
@@ -56,13 +54,6 @@ void
 con_init
 (void)
 {
-#if 0
-  stdio_init_all();
-  uart_set_baudrate(UART_ID, 115200);
-  // Inital UART
-  gpio_set_function(16, GPIO_FUNC_UART);
-  gpio_set_function(17, GPIO_FUNC_UART);
-#endif
   stdio_uart_init_full(UART_ID, BAUD_RATE, UART_TX_PIN, UART_RX_PIN);
   while(uart_is_readable(UART_ID))
     uart_getc(UART_ID);

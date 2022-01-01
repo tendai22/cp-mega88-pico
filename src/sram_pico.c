@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Takashi TOYOSHIMA <toyoshim@gmail.com>
+ * Copyright (c) 2021, Norihiro KUMAGAI <tendai22plus@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 
 // Raspberry Pi Pico has more than 64kB RAM, so we use it as sipmle RAM for i8080/z80
 
-static uint8_t sram[65535]; 
+static uint8_t sram[65536]; 
 
 void
 sram_init
