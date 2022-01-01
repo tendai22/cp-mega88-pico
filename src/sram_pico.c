@@ -31,20 +31,29 @@
 
 #include "sram.h"
 
-#include <avr/io.h>
+#include <inttypes.h>
+
+// Raspberry Pi Pico has more than 64kB RAM, so we use it as sipmle RAM for i8080/z80
+
+static uint8_t sram[65535]; 
 
 void
 sram_init
 (void)
 {
-  // PB0: /W - output
-  // PB1: E2 - output
-  // PB2: A16 - output
-  // PB4: CLK for FF on Address Low - output
-  // PB5: CLK for FF on Address High - output
-  // PD*: Address / Data - in/out
-  DDRB  |=  (_BV(DDB0) | _BV(DDB1) | _BV(DDB2) | _BV(DDB4) | _BV(DDB5));
-  PORTB &=  ~(_BV(DDB0) | _BV(DDB1) | _BV(DDB2) | _BV(DDB4) | _BV(DDB5));
-  DDRD  = 0xff;
-  PORTD = 0;
+  // implicitly cleard
+}
+
+uint8_t
+sram_read
+(uint16_t addr)
+{
+  return sram[addr];
+}
+
+void
+sram_write
+(uint16_t addr, uint8_t data)
+{
+  sram[addr] = data;
 }

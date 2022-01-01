@@ -29,8 +29,16 @@
  * DAMAGE.
  */
 
+#include <stdio.h>
+#include "pico/stdlib.h"
+#include "pico/stdio_uart.h"
+
 #if !defined(TEST)
+#if !defined(MCU_PICO)
 # include <avr/io.h>
+#else
+# include <inttypes.h>
+#endif // !defined(USE_PICO)
 #endif // !defined(TEST)
 #if defined(EFI)
 # include <efi/efi.h>
@@ -945,11 +953,11 @@ int
 machine_boot
 (void)
 {
+  con_init();
   led_init();
   sram_init();
   io_init();
   sdcard_init();
-  con_init();
 #if defined(MSG_MIN)
   con_putsln("\r\nCP/Mega88");
 #else // defined(MSG_MIN)
@@ -961,7 +969,7 @@ machine_boot
 #if defined(MON_MEM) || defined(CHK_MEM)
   mem_chk();
 #endif // defined(MON_MEM) || defined(CHK_MEM)
-  char rc = sdcard_open();
+  int rc = sdcard_open();
   if (rc >= 0) {
     con_putsln("SDC: ok");
 #if defined(CHK_SDC)
@@ -1010,6 +1018,7 @@ machine_boot
       char buf[8 + 1 + 3 + 1];
       eeprom_read_string(17, buf);
 #if defined(USE_FAT)
+    printf("sd_fat: %d\n", sd_fat);
       if (0 != sd_fat) mount(buf);
 #endif
     }

@@ -31,6 +31,13 @@
 
 #include "machine.h"
 
+#include <stdio.h>
+
+#include <stdio.h>
+#include "pico/stdlib.h"
+#include "pico/stdio_uart.h"
+#include "hardware/uart.h"
+
 int
 main
 (int argc, char **argv)
@@ -43,7 +50,6 @@ void
 platform_reset
 (void)
 {
-  asm ("mov r30, r1");
-  asm ("mov r31, r1");
-  asm ("ijmp");
+  // so far, a temporal remedy
+  printf("platform_reset should be implemented.");
 }
