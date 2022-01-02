@@ -44,5 +44,8 @@ sdcard_write
 (unsigned short offset, unsigned char data)
 {
   unsigned char* buffer = sdcard_buffer();
+#if defined(USE_FLASH)
+  sdcard_buffer_dirty();
+#endif
   buffer[offset] = data;
 }
