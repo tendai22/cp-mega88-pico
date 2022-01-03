@@ -131,6 +131,9 @@ cur_offset = -1;  // byte offset within 'buffer[]'
 static int
 cur_drive = -1;   // drive number
 
+static int
+debug_out = 1;
+
 void
 sdcard_init
 (void)
@@ -140,6 +143,7 @@ sdcard_init
   cur_drive = -1;
   cur_sector = -1;
   dirty_flag = 0;
+  debug_out = 0;
 }
 
 int
@@ -154,7 +158,7 @@ sdcard_buffer_dirty
 (void)
 {
   if (!dirty_flag) {
-    printf("d:\n");
+    if (debug_out) printf("d:\n");
   }
   dirty_flag = 1;
 }
@@ -168,10 +172,10 @@ flush_buffer_if_necessary
     if (cur_sector == -1) {
       // invalid data
       // do nothing
-      printf("f: invalid\n");
+      if (debug_out) printf("f: invalid\n");
     } else {
       // write it out
-      printf("f: %08X\n", cur_sector);
+      if (debug_out) printf("f: %08X\n", cur_sector);
       flash_range_erase(DRIVEA_BASE + (cur_sector << 12), FLASH_SECTOR_SIZE);
       flash_range_program(DRIVEA_BASE + (cur_sector << 12), buffer, FLASH_SECTOR_SIZE);
       dirty_flag = 0;
@@ -183,7 +187,7 @@ static void
 read_from_flash
 (unsigned long sector)
 {
-  printf("r: %08X\n", sector);
+  if (debug_out) printf("r: %08X\n", sector);
   unsigned char *src = (unsigned char *)(XIP_BASE) + DRIVEA_BASE + sector * FLASH_SECTOR_SIZE;
   memcpy(buffer, src, FLASH_SECTOR_SIZE);
   cur_sector = sector;
@@ -195,7 +199,7 @@ select_drive
 (int drive)
 {
   // always flush buffer
-  printf("sd: %d\n", drive);
+  if (debug_out) printf("sd: %d\n", drive);
   flush_buffer_if_necessary();
   if (cur_drive != drive) {
     // if another drive is selected, buffer[] becomes invalid
@@ -274,7 +278,7 @@ sdcard_fetch
   // read the specified sector
   unsigned long new_sector = blk_addr / FLASH_SECTOR_SIZE;
   int new_offset = blk_addr % FLASH_SECTOR_SIZE;
-  printf("F: %08X %05X:%03X\n", blk_addr, new_sector, new_offset);
+  if (debug_out) printf("F: %08X %05X:%03X\n", blk_addr, new_sector, new_offset);
 
   flush_buffer_if_necessary();
 
@@ -299,7 +303,7 @@ sdcard_store
   unsigned long new_sector = blk_addr / FLASH_SECTOR_SIZE;
   int new_offset = blk_addr % FLASH_SECTOR_SIZE;
 
-  printf("S: %08X %05X:%03X\n", blk_addr, new_sector, new_offset);
+  if (debug_out) printf("S: %08X %05X:%03X\n", blk_addr, new_sector, new_offset);
   // read-modify-erase-program
   if (cur_sector != new_sector) {
     flush_buffer_if_necessary();
@@ -325,6 +329,6 @@ void *
 sdcard_buffer
 (void)
 {
-//  printf("b: %03X\n", cur_offset);
+//  if (debug_out) printf("b: %03X\n", cur_offset);
   return &buffer[cur_offset];
 }
