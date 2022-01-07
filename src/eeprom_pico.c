@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Takashi TOYOSHIMA <toyoshim@gmail.com>
+ * Copyright (c) 2021, Norihiro KUMAGAI <tendai22plus@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,6 +31,7 @@
 
 #include <string.h>
 #include <inttypes.h>
+#include <stdio.h>
 #include "eeprom.h"
 
 #include "pico/stdlib.h"
@@ -41,19 +42,40 @@
 // The start address of QSPI flash device is XPI_BASE. So the start address of
 // eeprom is XIP_BASE + 0x200000 - 4096
 #ifndef FLASH_SECTOR_SIZE
+#warning FLASH_SECTOR_SIZE not set, assume 4096
 #define FLASH_SECTOR_SIZE 4096
 #endif
 #ifndef FLASH_PAGE_SIZE
+#warning FLASH_PAGE_SIZE not set, assume 256
 #define FLASH_PAGE_SIZE 256
 #endif
-#define EEPROM_BASE ((uint32_t)XIP_BASE + 0x200000 - FLASH_SECTOR_SIZE)
+
+#ifndef PICO_FLASH_SIZE_BYTES
+#warning PICO_FLASH_SIZE_BYTES not set, assuming 2M
+#define PICO_FLASH_SIZE_BYTES (2 * 1024 * 1024);
+#endif
+
+// address for erase/program operations, base is zero
+// for read operation(memcpy), base is XIP_BASE.
+#define EEPROM_BASE (0 + PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE)
+#define EEPROM_BASE_ADDR (XIP_BASE + EEPROM_BASE)
+
+//
+// The size of eeprom_load is EEPROM_SIZE, which is (usually) larger than that of 
+// QSPI Flash SECTOR SIZE, so we need an internal buffer which should accomodate a
+// sector data (4096bytes)
+//
+
+static uint8_t flash_sector_buffer[FLASH_SECTOR_SIZE];
 
 int
 eeprom_load
 (void *image)
 {
-  memcpy(image, (unsigned char *)EEPROM_BASE, FLASH_SECTOR_SIZE);
-  return FLASH_SECTOR_SIZE;
+  // the top EEPROM_SIZE (512bytes) of the flash sector is used as eeprom
+  // so we only copy the size of EEPROM_SIZE when we read it.
+  memcpy(image, (unsigned char *)EEPROM_BASE_ADDR, EEPROM_SIZE);
+  return EEPROM_SIZE;
 }
 
 void
@@ -61,8 +83,10 @@ eeprom_flush
 (void *image)
 {
   uint32_t ints = save_and_disable_interrupts();
+  memcpy(flash_sector_buffer, (unsigned char *)EEPROM_BASE_ADDR, FLASH_SECTOR_SIZE);
+  memcpy(flash_sector_buffer, image, EEPROM_SIZE);
   flash_range_erase (EEPROM_BASE, FLASH_SECTOR_SIZE);
-  flash_range_program(EEPROM_BASE, image, FLASH_SECTOR_SIZE);
+  flash_range_program(EEPROM_BASE, flash_sector_buffer, FLASH_SECTOR_SIZE);
   restore_interrupts (ints);
 }
 

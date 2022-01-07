@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Takashi TOYOSHIMA <toyoshim@gmail.com>
+ * Copyright (c) 2021, Norihiro KUMAGAI <tendai22plus@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

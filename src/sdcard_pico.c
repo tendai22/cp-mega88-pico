@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Takashi TOYOSHIMA <toyoshim@gmail.com>
+ * Copyright (c) 2021, Norihiro KUMAGAI <tendai22plus@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,9 @@
 #define SPI_FILL_CHAR 0xff
 #define SPI_ID spi0
 
+//
+// SPI Pin Assign
+//
 
 // RX  GP00
 // CS  GP01
@@ -51,10 +54,6 @@
 #define P_CS 1
 #define P_CK 2
 #define P_DI 3
-
-//#define PORT XXX
-//#define DDR  YYY
-//#define PIN  gpio_get_all()
 
 static unsigned char
 buffer[512];
@@ -83,10 +82,9 @@ static void cs_deselect()
 }
 
 static uint8_t sdcard_spi_write(spi_inst_t *spi, const uint8_t value) {
-    // TRACE_PRINTF("%s\n", __FUNCTION__);
-    u_int8_t received = SPI_FILL_CHAR;
-    spi_write_read_blocking(spi, &value, &received, 1);
-    return received;
+  u_int8_t received = SPI_FILL_CHAR;
+  spi_write_read_blocking(spi, &value, &received, 1);
+  return received;
 }
 
 static unsigned long
@@ -103,11 +101,11 @@ static void
 sd_out
 (const unsigned char c)
 {
-//  uint8_t received = SPI_FILL_CHAR;
-  uint8_t received;
-  spi_write_read_blocking(SPI_ID, &c, &received, 1);
+  uint8_t dummy;
+  spi_write_read_blocking(SPI_ID, &c, &dummy, 1);
 }
 
+#if 1
 static int
 sd_wait_resp
 (unsigned char value, int counter)
@@ -121,7 +119,6 @@ sd_wait_resp
     printf("time out\n");
     return -1;
   }
-  //printf("c%d ", counter);
   return c;
 
 }
@@ -132,6 +129,7 @@ sd_response_in
 {
   return sd_wait_resp(0xff, counter);
 }
+#endif
 
 static unsigned long
 sd_four_in
@@ -145,28 +143,15 @@ sd_four_in
   return rc;
 }
 
-#if 0
-static int
-sd_busy
-(char f)
-{
-  unsigned long timeout = 0xffff;
-  uint32_t c;
-  c = PIN;
-  if ((f & P_DO) == (c & P_DO)) return 0;
-  for (; 0 != timeout; timeout--) {
-    PIN_HIGH(P_CK);
-    WAIT_NOP(3);
-    c = PIN;
-    WAIT_NOP(57);
-    PIN_LOW(P_CK);
-    if ((f & P_DO) == (c & P_DO)) return 0;
-    WAIT_NOP(60);
-  }
-  return -1;
-}
-#endif
 
+//
+// SPI Command Debug Dump
+//
+#ifdef SDCARD_CMD_DUMP
+static int cmd_flag = 1;
+#else
+static int cmd_flag = 0;
+#endif
 
 static int
 sd_cmd
@@ -174,8 +159,7 @@ sd_cmd
 {
   int c;
   unsigned long rc;
-  printf("[%02X %02X %02X %02X %02X (%02X)]->", cmd, arg0, arg1, arg2, arg3, crc);
-
+  if (cmd_flag) printf("[%02X %02X %02X %02X %02X (%02X)]->", cmd, arg0, arg1, arg2, arg3, crc);
   cs_select();
   sd_out(cmd);
   sd_out(arg0);
@@ -186,24 +170,25 @@ sd_cmd
   if ((c = sd_response_in(20)) < 0) return -1;
   // Read remaining response bites.
   if (0x48 == cmd) {
-    printf("%02X:", c);
-    //if (c & 0x04) return -2;
+    if (cmd_flag) printf("%02X:", c);
+    // Even if R1 return value, we still need to read four bytes, no special reason
+    // is known.
     rc = sd_four_in();
     cs_deselect();
-    printf("%X\n", rc);
+    if (cmd_flag) printf("%X\n", rc);
     if (resp) *resp = rc;
     return (c & 0x04) ? -2: c;  // R7
   }
   if (0x7a == cmd) {
-    printf("%02X:", c);
+    if (cmd_flag) printf("%02X:", c);
     rc = sd_four_in();
     cs_deselect();
-    printf("%X\n", rc);
+    if (cmd_flag) printf("%X\n", rc);
     if (resp) *resp = rc;
     return c;  // R3
   }
   sd_four_in();
-  printf("%02X\n", c);
+  if (cmd_flag) printf("%02X\n", c);
     //else printf(".");
   return c;  // R1
 }
@@ -217,28 +202,14 @@ sdcard_init
    * DO: in
    */
   // Port Settings
-#if 1 //!defined(MCU_PICO)
-  spi_init(spi0, 2000 * 1000);
+  spi_init(spi0, 2000 * 1000);  // 2Mbit/sec
   gpio_set_function(P_DO, GPIO_FUNC_SPI); // RX
   gpio_set_function(P_CK, GPIO_FUNC_SPI); // SCK
   gpio_set_function(P_DI, GPIO_FUNC_SPI); // TX
-//  bi_decl(bi_3pins_with_func(P_DO, P_CK, P_DI, GPIO_FUNC_SPI));
   // CSn
   gpio_init(P_CS); // CSn
   gpio_set_dir(P_CS, GPIO_OUT);
   gpio_put(P_CS, 1);
-  //gpio_init(P_DI); // CSn
-  //gpio_set_dir(P_DI, GPIO_OUT);
-  //gpio_put(P_DI, 1);
-//  bi_decl(bi_1pin_with_name(P_CS, "SPI CS"));
-//  printf("spi initialized\n");
-#else
-  sleep_ms(1);
-  gpio_init_mask(P_CS|P_DI|P_DO|P_CK);
-  gpio_set_dir_in_masked(P_DO);
-  gpio_set_dir_out_masked(P_CS|P_DI|P_CK);
-  gpio_clr_mask(P_CS|P_DI|P_CK);
-#endif //!defined(MCU_PICO)
   cur_blk = 0;
 }
 
@@ -247,10 +218,7 @@ sdcard_open
 (void)
 {
   uint32_t dummy;
-  //int i;
-  // initial clock
-  //PIN_HIGH(P_DI | P_CS);
-  //gpio_set_mask((1<<P_DI)|(1<<P_CS));
+
   gpio_put(P_DI, 1);
   // reset with 80 clocks
   for (int i = 0; i < 10; ++i) {
@@ -275,14 +243,12 @@ sdcard_open
     type = 1;   // SD1
     printf("SD Ver.1\n");
     // reset to IDLE State again
-#if 1
     rc = sd_cmd(0x40, 0x00, 0x00, 0x00, 0x00, 0x95, &dummy);
     if (rc < 0 || 1 != rc) {
       cs_deselect();
       printf("re IDLE STATE fail\n");
       return -1;
     }
-#endif
     // go to ACMD41 initialize
   } else if ((dummy & 0x00000fff) != 0x1aa) {
     cs_deselect();
@@ -346,11 +312,13 @@ sdcard_fetch
   if ((c = sd_response_in(60)) < 0 || c != 0xfe) return -2;
   for (int i = 0; i < 512; i++) {
     buffer[i] = sd_in();
+#if SDCARD_FETCH_DUMP
     if ((i % 16) == 0)
       printf("%03X ", i);
     printf("%02X ", buffer[i]);
     if ((i % 16) == 15)
       printf("\n");
+#endif //SDCARD_FETCH_DUMP
   }
   crc = sd_in() << 8;
   crc |= sd_in();
