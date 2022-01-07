@@ -34,31 +34,37 @@
 
 # if defined(TEST)
 #  define CPU_EMU_C
+#if !defined(USE_FLASH)
 #  define USE_FAT
+#endif // !defined(USE_FLASH)
+#if !defined(USE_FLASH)
+#  define MON_SDC
+#  define CHK_SDC
+#  define MON_FAT
+#endif //!defined(USE_FLASH)
 /* #  define MSG_MIN */
 /* #  define CLR_MEM */
 #  define CHK_MEM
 /* #  define CHK_MIN */
-#  define CHK_SDC
 #  define MONITOR
 #  define  MON_MEM
-#  define  MON_SDC
-#  define  MON_FAT
 #  define  MON_CON
 #  define  MON_HELP
 # else // defined(TEST)
 #  define CPU_EMU_A
 /* #  define CPM_DEBUG */
 /* #  define USE_FAT */
-#  define MSG_MIN
+//#  define MSG_MIN
 /* #  define CLR_MEM */
 #  define CHK_MEM
 #  define CHK_MIN
 /* #  define CHK_SDC */
 #  define MONITOR
 /* #  define  MON_MEM */
+#if !defined(USE_FLASH)
 #  define  MON_SDC
-/* #  define  MON_FAT */
+#  define  MON_FAT
+#endif //!defined(USE_FLASH)
 #  define  MON_CON
 #  define  MON_HELP
 #  define IOEXT

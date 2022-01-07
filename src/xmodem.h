@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Takashi TOYOSHIMA <toyoshim@gmail.com>
+ * Copyright (c) 2021, Norihiro KUMAGAI <tendai22plus@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,21 +29,10 @@
  * DAMAGE.
  */
 
-#if !defined(__sdcard_h__)
-# define __sdcard_h__
+#if !defined(_XMODEM_H)
+#define _XMODEM_H
 
-void sdcard_init(void);
-int sdcard_open(void);
-int sdcard_fetch(unsigned long blk_addr);
-int sdcard_store(unsigned long blk_addr);
-unsigned short sdcard_crc(void);
-int sdcard_flush(void);
-void *sdcard_buffer(void);
-#if defined(USE_FLASH)
-void sdcard_buffer_dirty(void);
-void select_drive(int drive);
-#endif // defined(USE_FLASH)
-unsigned char sdcard_read(unsigned short offset);
-void sdcard_write(unsigned short offset, unsigned char data);
+extern long xmodemReceive(unsigned char *dest, int destsz);
+extern int xmodemTransmit(unsigned char *src, int srcsz);
 
-#endif // !defined(__sdcard_h__)
+#endif //!defined(_XMODEM_H)

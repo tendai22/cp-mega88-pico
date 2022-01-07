@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Takashi TOYOSHIMA <toyoshim@gmail.com>
+ * Copyright (c) 2021, Norihiro KUMAGAI <tendai22plus@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,21 +29,31 @@
  * DAMAGE.
  */
 
-#if !defined(__sdcard_h__)
-# define __sdcard_h__
+#include "led.h"
 
-void sdcard_init(void);
-int sdcard_open(void);
-int sdcard_fetch(unsigned long blk_addr);
-int sdcard_store(unsigned long blk_addr);
-unsigned short sdcard_crc(void);
-int sdcard_flush(void);
-void *sdcard_buffer(void);
-#if defined(USE_FLASH)
-void sdcard_buffer_dirty(void);
-void select_drive(int drive);
-#endif // defined(USE_FLASH)
-unsigned char sdcard_read(unsigned short offset);
-void sdcard_write(unsigned short offset, unsigned char data);
+#include "pico/stdlib.h"
 
-#endif // !defined(__sdcard_h__)
+
+static volatile unsigned char blink = 0;
+static const int LED_PIN = PICO_DEFAULT_LED_PIN;
+
+void led_init(void) {
+  gpio_init(LED_PIN);
+  gpio_set_dir(LED_PIN, GPIO_OUT);
+}
+
+void led_on(void) {
+  blink = 0;
+  gpio_put(LED_PIN, 1);
+}
+
+void led_off(void) {
+  blink = 0;
+  gpio_put(LED_PIN, 0);
+}
+
+void led_blink(void) {
+  blink = 1;
+}
+
+

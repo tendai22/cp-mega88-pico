@@ -29,8 +29,18 @@
  * DAMAGE.
  */
 
+#include <stdio.h>
+#include "pico/stdlib.h"
+#include "pico/stdio_uart.h"
+
+#include "flash.h"
+
 #if !defined(TEST)
+#if !defined(MCU_PICO)
 # include <avr/io.h>
+#else
+# include <inttypes.h>
+#endif // !defined(USE_PICO)
 #endif // !defined(TEST)
 #if defined(EFI)
 # include <efi/efi.h>
@@ -45,6 +55,7 @@
 #include "platform.h"
 #include "sdcard.h"
 #include "sram.h"
+#include "xmodem.h"
 
 #if defined(CPU_EMU_C)
 # include "cpu_8080.h"
@@ -286,6 +297,8 @@ void
 prompt
 (void)
 {
+  static unsigned short addr = 0;
+  static unsigned long flash_addr = 0;
   char buffer[MAX_PROMPT + 1];
   unsigned char size = 0;
   con_puts("CP/Mega88>");
@@ -387,6 +400,22 @@ prompt
     con_putsln(">");
 # endif // !defined(MSG_MIN)
     sram_write(n_addr, n_data);
+    return;
+  } else if (0 == strdcmp("md", cmd, ' ')) {
+    if (NULL != arg) {
+      uint16_t n = getnum(arg);
+      addr = n;
+    }
+    for (int i = 0; i < 256; ++i, ++addr) {
+      if (i % 16 == 0) {
+        printf("%04X ", addr);
+      }
+      unsigned char c = sram_read(addr);
+      printf("%02X ", c);
+      if ((i % 16) == 15) {
+        printf("\n");
+      }
+    }
     return;
 #endif // defined(MON_MEM)
 #if defined (MON_SDC)
@@ -543,6 +572,31 @@ prompt
 #  endif // defined(MSG_MIN)
     return;
 # endif // defined(EFI)
+# if defined(USE_FLASH)
+  } else if (0 == strdcmp("xr", cmd, ' ')) {
+    unsigned long len;
+    len = xmodem_flash();
+    end_flash_write();
+    printf("\nwrite %ld (%lX) bytes\n", len, len);
+    return;
+  } else if (0 == strdcmp("fd", cmd, ' ')) {
+    // flash dump
+    if (NULL != arg) {
+      uint32_t n = getnum(arg);
+      flash_addr = n;
+    }
+    for (int i = 0; i < 128; ++i, ++flash_addr) {
+      if (i % 16 == 0) {
+        printf("%04X ", flash_addr);
+      }
+      unsigned char c = flash_read(flash_addr);
+      printf("%02X ", c);
+      if ((i % 16) == 15) {
+        printf("\n");
+      }
+    }
+    return;
+# endif // defined(USE_FLASH)
 #endif // defined(MON_CON)
   }
  usage:
@@ -553,9 +607,13 @@ prompt
   con_putsln(" b                : boot CP/M 2.2");
   con_putsln(" wp <on/off>      : file system write protection");
   con_putsln(" a <on/off>       : auto boot");
+#  if defined(USE_FLASH)
+  con_putsln(" fd <addr>        : dump flash disk");
+#  endif // defined(USE_FLASH)
 #  if defined(MON_MEM)
   con_putsln(" mr <addr>        : memory read from <addr>");
   con_putsln(" mw <addr>,<data> : memory write <data> to <addr>");
+  con_putsln(" md <addr>        : memory dump from <addr>, 256bytes");
 #  endif // defined(MON_MEM)
 #  if defined(MON_SDC)
   con_putsln(" so               : sdcard open");
@@ -568,6 +626,10 @@ prompt
   con_putsln(" cd               : change directory");
   con_putsln(" m <filename>     : mount image disk");
 #  endif // defined(MON_FAT)
+#  if defined(USE_XMODEM)
+  con_putsln(" xr               : xmodem read");
+  con_putsln(" fd <addr>        : flash dump");
+#  endif // defined(USE_XMODEM)
 #  if defined(MON_CON)
   con_putsln(" vt <on/off>      : vt100 compatible mode");
 #   if defined(EFI)
@@ -850,6 +912,9 @@ out
     break;
   case 10:
     drive = val;
+#if defined(USE_FLASH)
+    select_drive(drive);
+#endif
     break;
   case 11:
     track = val;
@@ -945,11 +1010,11 @@ int
 machine_boot
 (void)
 {
+  con_init();
   led_init();
   sram_init();
   io_init();
   sdcard_init();
-  con_init();
 #if defined(MSG_MIN)
   con_putsln("\r\nCP/Mega88");
 #else // defined(MSG_MIN)
@@ -961,7 +1026,7 @@ machine_boot
 #if defined(MON_MEM) || defined(CHK_MEM)
   mem_chk();
 #endif // defined(MON_MEM) || defined(CHK_MEM)
-  char rc = sdcard_open();
+  int rc = sdcard_open();
   if (rc >= 0) {
     con_putsln("SDC: ok");
 #if defined(CHK_SDC)
@@ -1010,6 +1075,7 @@ machine_boot
       char buf[8 + 1 + 3 + 1];
       eeprom_read_string(17, buf);
 #if defined(USE_FAT)
+    printf("sd_fat: %d\n", sd_fat);
       if (0 != sd_fat) mount(buf);
 #endif
     }

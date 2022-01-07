@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Takashi TOYOSHIMA <toyoshim@gmail.com>
+ * Copyright (c) 2021, Norihiro KUMAGAI <tendai22plus@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,21 +29,60 @@
  * DAMAGE.
  */
 
-#if !defined(__sdcard_h__)
-# define __sdcard_h__
+#include "con.h"
 
-void sdcard_init(void);
-int sdcard_open(void);
-int sdcard_fetch(unsigned long blk_addr);
-int sdcard_store(unsigned long blk_addr);
-unsigned short sdcard_crc(void);
-int sdcard_flush(void);
-void *sdcard_buffer(void);
-#if defined(USE_FLASH)
-void sdcard_buffer_dirty(void);
-void select_drive(int drive);
-#endif // defined(USE_FLASH)
-unsigned char sdcard_read(unsigned short offset);
-void sdcard_write(unsigned short offset, unsigned char data);
+#include <stdio.h>
+#include "pico/stdlib.h"
+#include "pico/stdio_uart.h"
 
-#endif // !defined(__sdcard_h__)
+#define UART_ID uart_default
+#define BAUD_RATE 115200
+
+// We are using pins 0 and 1, but see the GPIO function select table in the
+// datasheet for information on which other pins can be used.
+#define UART_TX_PIN 16
+#define UART_RX_PIN 17
+
+static void
+sleep
+(void)
+{
+  sleep_us(100);   // 100us wait
+}
+
+void
+con_init
+(void)
+{
+  stdio_uart_init_full(UART_ID, BAUD_RATE, UART_TX_PIN, UART_RX_PIN);
+  while(uart_is_readable(UART_ID))
+    uart_getc(UART_ID);
+}
+
+void
+con_putchar
+(unsigned char c)
+{
+  while(!uart_is_writable(UART_ID))
+    sleep();
+  uart_putc(UART_ID, c);
+}
+
+int
+con_getchar
+(void)
+{
+  if (uart_is_readable(UART_ID)) {
+    return uart_getc(UART_ID);
+  }
+  sleep();
+  return uart_is_readable(UART_ID) ? uart_getc(UART_ID) : -1;
+}
+
+int
+con_peek
+(void)
+{
+  sleep();
+  return uart_is_readable(UART_ID) ? 1 : 0;
+}

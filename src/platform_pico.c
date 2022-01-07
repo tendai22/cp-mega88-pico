@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Takashi TOYOSHIMA <toyoshim@gmail.com>
+ * Copyright (c) 2021, Norihiro KUMAGAI <tendai22plus@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,21 +29,27 @@
  * DAMAGE.
  */
 
-#if !defined(__sdcard_h__)
-# define __sdcard_h__
+#include "machine.h"
 
-void sdcard_init(void);
-int sdcard_open(void);
-int sdcard_fetch(unsigned long blk_addr);
-int sdcard_store(unsigned long blk_addr);
-unsigned short sdcard_crc(void);
-int sdcard_flush(void);
-void *sdcard_buffer(void);
-#if defined(USE_FLASH)
-void sdcard_buffer_dirty(void);
-void select_drive(int drive);
-#endif // defined(USE_FLASH)
-unsigned char sdcard_read(unsigned short offset);
-void sdcard_write(unsigned short offset, unsigned char data);
+#include <stdio.h>
 
-#endif // !defined(__sdcard_h__)
+#include <stdio.h>
+#include "pico/stdlib.h"
+#include "pico/stdio_uart.h"
+#include "hardware/uart.h"
+
+int
+main
+(int argc, char **argv)
+{
+  machine_boot();
+  return 0;
+}
+
+void
+platform_reset
+(void)
+{
+  // so far, a temporal remedy
+  printf("platform_reset should be implemented.");
+}

@@ -32,6 +32,8 @@
 #include "fat.h"
 #include "sdcard.h"
 
+#include <stdio.h>
+
 #define OFF_FS_DESC 450
 #define OFF_P1_1SCT 454
 #define OFF_FS_TYPE 54
@@ -105,8 +107,9 @@ fat_init
 {
   if (sdcard_fetch(0) < 0) return -1;
   char fs_desc = sdcard_read(OFF_FS_DESC);
+  printf("fs_desc: %02X\n", fs_desc);
   if ((0x55 != sdcard_read(510)) || (0xaa != sdcard_read(511))) return -2;
-  if ((4 != fs_desc) && (6 != fs_desc)) return -80 - fs_desc;
+  if ((4 != fs_desc) && (6 != fs_desc) && (0x0b != fs_desc)) return -80 - fs_desc;
 
   // BPB sector
   fat_first_sect = read4(OFF_P1_1SCT);
