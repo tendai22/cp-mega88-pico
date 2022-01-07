@@ -29,27 +29,40 @@
  * DAMAGE.
  */
 
+#include <string.h>
+#include <inttypes.h>
 #include "eeprom.h"
 
-#include <avr/io.h>
+#include "pico/stdlib.h"
+#include "hardware/flash.h"
+#include "hardware/sync.h"
+
+// We use Pico QSPI Flash as eeprom storage, the last sector(4kB) of its size(2MB)
+// The start address of QSPI flash device is XPI_BASE. So the start address of
+// eeprom is XIP_BASE + 0x200000 - 4096
+#ifndef FLASH_SECTOR_SIZE
+#define FLASH_SECTOR_SIZE 4096
+#endif
+#ifndef FLASH_PAGE_SIZE
+#define FLASH_PAGE_SIZE 256
+#endif
+#define EEPROM_BASE ((uint32_t)XIP_BASE + 0x200000 - FLASH_SECTOR_SIZE)
+
+int
+eeprom_load
+(void *image)
+{
+  memcpy(image, (unsigned char *)EEPROM_BASE, FLASH_SECTOR_SIZE);
+  return FLASH_SECTOR_SIZE;
+}
 
 void
-eeprom_write
-(unsigned short addr, unsigned char data)
+eeprom_flush
+(void *image)
 {
-  while (0 != (EECR & _BV(EEPE)));
-  EEAR = addr;
-  EEDR = data;
-  EECR |= _BV(EEMPE);
-  EECR |= _BV(EEPE);
+  uint32_t ints = save_and_disable_interrupts();
+  flash_range_erase (EEPROM_BASE, FLASH_SECTOR_SIZE);
+  flash_range_program(EEPROM_BASE, image, FLASH_SECTOR_SIZE);
+  restore_interrupts (ints);
 }
 
-unsigned char
-eeprom_read
-(unsigned short addr)
-{
-  while (0 != (EECR & _BV(EEPE)));
-  EEAR = addr;
-  EECR |= _BV(EERE);
-  return EEDR;
-}

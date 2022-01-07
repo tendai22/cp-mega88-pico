@@ -31,36 +31,25 @@
 
 #include "led.h"
 
-#include <avr/io.h>
-#include <avr/interrupt.h>
+#include "pico/stdlib.h"
+
 
 static volatile unsigned char blink = 0;
-
-ISR
-(TIMER1_COMPA_vect)
-{
-  if (blink)
-    DDRC ^= _BV(PINC7);
-}
+static const int LED_PIN = PICO_DEFAULT_LED_PIN;
 
 void led_init(void) {
-  PORTC &= ~_BV(PINC7);
-  led_off();
-  TCCR1A = 0;
-  TCCR1B = _BV(WGM12) | _BV(CS12) | _BV(CS10);
-  OCR1AH = 0x10;
-  OCR1AL = 0x00;
-  TIMSK1 |= _BV(OCIE1A);
+  gpio_init(LED_PIN);
+  gpio_set_dir(LED_PIN, GPIO_OUT);
 }
 
 void led_on(void) {
   blink = 0;
-  DDRC |= _BV(PINC7);
+  gpio_put(LED_PIN, 1);
 }
 
 void led_off(void) {
   blink = 0;
-  DDRC &= ~_BV(PINC7);
+  gpio_put(LED_PIN, 0);
 }
 
 void led_blink(void) {

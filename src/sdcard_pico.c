@@ -31,35 +31,30 @@
 
 #include "sdcard.h"
 
-#include <avr/io.h>
+#include <stdio.h>
+#include "pico/stdlib.h"
+#include "hardware/clocks.h"
+#include "hardware/spi.h"
 
-#define PORT PORTC
-#define DDR  DDRC
-#define PIN  PINC
+//
+// pico specific definition
+//
+#define SPI_FILL_CHAR 0xff
+#define SPI_ID spi0
 
-#define P_CK _BV(PINC2)
-#define P_PU _BV(PINC4)
-#define P_DO _BV(PINC4)
 
-#if defined(MCU_88)
-# define P_DI _BV(PINC3)
-# define P_CS _BV(PINC5)
-#elif defined(MCU_32U2)
-# define P_DI _BV(PINC5)
-# define P_CS _BV(PINC6)
-#else
-# error
-#endif
+// RX  GP00
+// CS  GP01
+// SCK GP02
+// TX  GP03
+#define P_DO 0
+#define P_CS 1
+#define P_CK 2
+#define P_DI 3
 
-#if defined(MCU_88)
-# define PIN_HIGH(x) PORT |= (x)
-# define PIN_LOW(x) PORT &= ~(x)
-#elif defined(MCU_32U2)  // emulate open-drain
-# define PIN_HIGH(x) DDR &= ~(x)
-# define PIN_LOW(x) DDR |= (x)
-#else
-# error
-#endif
+//#define PORT XXX
+//#define DDR  YYY
+//#define PIN  gpio_get_all()
 
 static unsigned char
 buffer[512];
@@ -73,72 +68,144 @@ cur_blk;
 static unsigned char
 ccs;
 
-static void
-sd_out
-(char c)
+static void cs_select()
 {
-  int i;
-  for (i = 7; i >= 0; i--) {
-    PIN_LOW(P_CK);
-    if (c & (1 << i)) PIN_HIGH(P_DI);
-    else PIN_LOW(P_DI);
-    PIN_HIGH(P_CK);
-  }
-  PIN_LOW(P_CK);
+  asm volatile("nop \n nop \n nop");
+  gpio_put(P_CS, 0);  // Active low
+  asm volatile("nop \n nop \n nop");
 }
 
+static void cs_deselect()
+{
+  asm volatile("nop \n nop \n nop");
+  gpio_put(P_CS, 1);  // Active low
+  asm volatile("nop \n nop \n nop");
+}
+
+static uint8_t sdcard_spi_write(spi_inst_t *spi, const uint8_t value) {
+    // TRACE_PRINTF("%s\n", __FUNCTION__);
+    u_int8_t received = SPI_FILL_CHAR;
+    spi_write_read_blocking(spi, &value, &received, 1);
+    return received;
+}
+
+static unsigned long
+sd_in
+(void)
+{
+  uint8_t value = SPI_FILL_CHAR;
+  uint8_t received;
+  spi_write_read_blocking(SPI_ID, &value, &received, 1);
+  return received;
+}
+
+static void
+sd_out
+(const unsigned char c)
+{
+//  uint8_t received = SPI_FILL_CHAR;
+  uint8_t received;
+  spi_write_read_blocking(SPI_ID, &c, &received, 1);
+}
+
+static int
+sd_wait_resp
+(unsigned char value, int counter)
+{
+  unsigned char c;
+  while (counter > 0 && (c = sd_in()) == value) {
+    sleep_us(1);
+    counter--;
+  }
+  if (counter <= 0) {
+    printf("time out\n");
+    return -1;
+  }
+  //printf("c%d ", counter);
+  return c;
+
+}
+
+static int
+sd_response_in
+(int counter)
+{
+  return sd_wait_resp(0xff, counter);
+}
+
+static unsigned long
+sd_four_in
+(void)
+{
+  unsigned long rc = 0;
+  rc |= sd_in() << 24;
+  rc |= sd_in() << 16;
+  rc |= sd_in() << 8;
+  rc |= sd_in();
+  return rc;
+}
+
+#if 0
 static int
 sd_busy
 (char f)
 {
   unsigned long timeout = 0xffff;
+  uint32_t c;
+  c = PIN;
+  if ((f & P_DO) == (c & P_DO)) return 0;
   for (; 0 != timeout; timeout--) {
-    char c;
     PIN_HIGH(P_CK);
+    WAIT_NOP(3);
     c = PIN;
+    WAIT_NOP(57);
     PIN_LOW(P_CK);
     if ((f & P_DO) == (c & P_DO)) return 0;
+    WAIT_NOP(60);
   }
   return -1;
 }
+#endif
 
-static unsigned long
-sd_in
-(char n)
-{
-  int i;
-  unsigned long rc = 0;
-  for (i = 0; i < n; i++) {
-    char c;
-    PIN_HIGH(P_CK);
-    c = PIN;
-    PIN_LOW(P_CK);
-    rc <<= 1;
-    if (c & P_DO) rc |= 1;
-  }
-  return rc;
-}
 
-static unsigned long
+static int
 sd_cmd
-(char cmd, char arg0, char arg1, char arg2, char arg3, char crc)
+(char cmd, char arg0, char arg1, char arg2, char arg3, char crc, unsigned long *resp)
 {
-  PIN_HIGH(P_DI);
-  PIN_LOW(P_CS);
+  int c;
+  unsigned long rc;
+  printf("[%02X %02X %02X %02X %02X (%02X)]->", cmd, arg0, arg1, arg2, arg3, crc);
 
+  cs_select();
   sd_out(cmd);
   sd_out(arg0);
   sd_out(arg1);
   sd_out(arg2);
   sd_out(arg3);
   sd_out(crc);
-  PIN_HIGH(P_DI);
-  if (sd_busy(0) < 0) return 0xffffffff;
-  // The first response bit was already consumed by sd_busy.
+  if ((c = sd_response_in(20)) < 0) return -1;
   // Read remaining response bites.
-  if (0x48 == cmd) return sd_in(39);  // R7
-  if (0x7a == cmd) return sd_in(39);  // R3
-  return sd_in(7);  // R1
+  if (0x48 == cmd) {
+    printf("%02X:", c);
+    //if (c & 0x04) return -2;
+    rc = sd_four_in();
+    cs_deselect();
+    printf("%X\n", rc);
+    if (resp) *resp = rc;
+    return (c & 0x04) ? -2: c;  // R7
+  }
+  if (0x7a == cmd) {
+    printf("%02X:", c);
+    rc = sd_four_in();
+    cs_deselect();
+    printf("%X\n", rc);
+    if (resp) *resp = rc;
+    return c;  // R3
+  }
+  sd_four_in();
+  printf("%02X\n", c);
+    //else printf(".");
+  return c;  // R1
 }
 
 void
@@ -150,12 +217,28 @@ sdcard_init
    * DO: in
    */
   // Port Settings
-  DDR |=  (P_CK | P_DI | P_CS);
-  PORT &= ~(P_CK | P_DI | P_CS);
-
-  DDR &= ~P_DO;
-  PORT |= P_PU;
-
+#if 1 //!defined(MCU_PICO)
+  spi_init(spi0, 2000 * 1000);
+  gpio_set_function(P_DO, GPIO_FUNC_SPI); // RX
+  gpio_set_function(P_CK, GPIO_FUNC_SPI); // SCK
+  gpio_set_function(P_DI, GPIO_FUNC_SPI); // TX
+//  bi_decl(bi_3pins_with_func(P_DO, P_CK, P_DI, GPIO_FUNC_SPI));
+  // CSn
+  gpio_init(P_CS); // CSn
+  gpio_set_dir(P_CS, GPIO_OUT);
+  gpio_put(P_CS, 1);
+  //gpio_init(P_DI); // CSn
+  //gpio_set_dir(P_DI, GPIO_OUT);
+  //gpio_put(P_DI, 1);
+//  bi_decl(bi_1pin_with_name(P_CS, "SPI CS"));
+//  printf("spi initialized\n");
+#else
+  sleep_ms(1);
+  gpio_init_mask(P_CS|P_DI|P_DO|P_CK);
+  gpio_set_dir_in_masked(P_DO);
+  gpio_set_dir_out_masked(P_CS|P_DI|P_CK);
+  gpio_clr_mask(P_CS|P_DI|P_CK);
+#endif //!defined(MCU_PICO)
   cur_blk = 0;
 }
 
@@ -163,66 +246,117 @@ int
 sdcard_open
 (void)
 {
+  uint32_t dummy;
+  //int i;
   // initial clock
-  PIN_HIGH(P_DI | P_CS);
-  int i;
-  for (i = 0; i < 80; i++) {
-    PIN_HIGH(P_CK);
-    PIN_LOW(P_CK);
+  //PIN_HIGH(P_DI | P_CS);
+  //gpio_set_mask((1<<P_DI)|(1<<P_CS));
+  gpio_put(P_DI, 1);
+  // reset with 80 clocks
+  for (int i = 0; i < 10; ++i) {
+    sd_out(0xff);
   }
   unsigned long rc;
   // cmd0 - GO_IDLE_STATE (response R1)
-  rc = sd_cmd(0x40, 0x00, 0x00, 0x00, 0x00, 0x95);
-  if (1 != rc) return -1;
-
-  // cmd8 - SEND_IF_COND (response R7)
-  rc = sd_cmd(0x48, 0x00, 0x00, 0x01, 0x0aa, 0x87);
-  if ((rc & 0x00000fff) != 0x1aa) {
-    // SDC v2 initialization failed, try legacy command.
-    // cmd1 - SEND_OP_COND (response R1)
-    for (;;) {
-      rc = sd_cmd(0x41, 0x00, 0x00, 0x00, 0x00, 0x00);
-      if (0 == rc) break;
-      if (0xffffffff == rc) return -2;
-    }
-    if (0 != rc) return -3;
-    ccs = 0;
-  } else {
-    do {
-      // cmd55 - APP_CMD (response R1)
-      rc = sd_cmd(0x77, 0x00, 0x00, 0x00, 0x00, 0x01);
-      // acmd41 - SD_SEND_OP_COND (response R1)
-      rc = sd_cmd(0x69, 0x40, 0x00, 0x00, 0x00, 0x77);
-    } while (0 != rc);  // no errors, no idle
-    do {
-      // cmd58 - READ_OCR (response R3)
-      rc = sd_cmd(0x7a, 0x00, 0x00, 0x00, 0x00, 0xfd);
-    } while (0 == (rc & 0x80000000));  // card powerup not completed
-    ccs = (rc & 0x40000000) ? 1 : 0; // ccs bit high means SDHC card
+  rc = sd_cmd(0x40, 0x00, 0x00, 0x00, 0x00, 0x95, &dummy);
+  if (rc < 0 ||1 != rc) {
+    cs_deselect();
+    return -1;
   }
-  PIN_LOW(P_CK);
+  // cmd8 - SEND_IF_COND (response R7)
+  rc = sd_cmd(0x48, 0x00, 0x00, 0x01, 0x0aa, 0x87, &dummy);
+  if (rc < 0) {
+    cs_deselect();
+    return -1;
+  }
+  int type;
+  if ((rc & 0x04) == 0x04) {  // CMD8 error (illegal command)
+    // it means SD Version 1 (legacy card)
+    type = 1;   // SD1
+    printf("SD Ver.1\n");
+    // reset to IDLE State again
+#if 1
+    rc = sd_cmd(0x40, 0x00, 0x00, 0x00, 0x00, 0x95, &dummy);
+    if (rc < 0 || 1 != rc) {
+      cs_deselect();
+      printf("re IDLE STATE fail\n");
+      return -1;
+    }
+#endif
+    // go to ACMD41 initialize
+  } else if ((dummy & 0x00000fff) != 0x1aa) {
+    cs_deselect();
+    printf("ERR\n");
+    goto error;
+  } else {
+    cs_deselect();
+    printf("SD Ver.2\n");
+    // 0x1aa
+    type = 2; // SD2
+  }
+  int arg = (type == 2) ? 0X40 : 0;
+  int count = 0;
+  do {
+    // cmd55 - APP_CMD (response R1)
+    sd_cmd(0x77, 0x00, 0x00, 0x00, 0x00, 0x01, &dummy);
+    // acmd41 - SD_SEND_OP_COND (response R1)
+    rc = sd_cmd(0x69, arg, 0x00, 0x00, 0x00, 0x77/*0x77*/, &dummy);
+    sleep_ms(100);
+    if (count++ >= 50) goto error;
+  } while (rc != 0);
+  ccs = (rc & 0x40000000) ? 1 : 0; // ccs bit high means SDHC card
+
+  if (type == 2) {
+    // SD TYPE 2
+    // cmd58 - READ_OCR (response R3)
+    rc = sd_cmd(0x7a, 0x00, 0x00, 0x00, 0x00, 0xff, &dummy);//0xfd);
+    ccs = (dummy & 0x40000000) ? 1 : 0; // ccs bit high means SDHC card
+    if ((dummy & 0xC0000000) == 0xC0000000) {
+      type = 3; // SDHC
+      printf ("SDHC%s\n", (ccs ? " High Capacity" : ""));
+    } else {
+      printf("SD Ver.2+\n");
+      rc = sd_cmd(0x50, 0x00, 0x00, 0x02, 0x00, 0x00, &dummy);
+      // force 512 byte/block
+    }
+  }
+  gpio_clr_mask(1<<P_CK);
+  cs_deselect();
   return 0;
+error:
+  gpio_set_mask(1<<P_CS);
+  cs_deselect();
+  return -1;
 }
 
 int
 sdcard_fetch
 (unsigned long blk_addr)
 {
+  int c;
+  uint32_t dummy, crc;
+
   cur_blk = blk_addr;
   if (0 != ccs) blk_addr >>= 9; // SDHC cards use block addresses
   // cmd17
   unsigned long rc =
-    sd_cmd(0x51, blk_addr >> 24, blk_addr >> 16, blk_addr >> 8, blk_addr, 0x00);
+    sd_cmd(0x51, blk_addr >> 24, blk_addr >> 16, blk_addr >> 8, blk_addr, 0x00, &dummy);
   if (0 != rc) return -1;
-  if (sd_busy(0) < 0) return -2;
-  int i;
-  for (i = 0; i < 512; i++) buffer[i] = sd_in(8);
-  rc = sd_in(8);
-  crc = (rc << 8) | sd_in(8);
-
+  // Data token 0xFE
+  if ((c = sd_response_in(60)) < 0 || c != 0xfe) return -2;
+  for (int i = 0; i < 512; i++) {
+    buffer[i] = sd_in();
+    if ((i % 16) == 0)
+      printf("%03X ", i);
+    printf("%02X ", buffer[i]);
+    if ((i % 16) == 15)
+      printf("\n");
+  }
+  crc = sd_in() << 8;
+  crc |= sd_in();
   // XXX: rc check
 
-  PIN_LOW(P_CK);
+  gpio_clr_mask(1<<P_CK);
   return 0;
 }
 
@@ -230,10 +364,13 @@ int
 sdcard_store
 (unsigned long blk_addr)
 {
+  uint32_t dummy;
+  int c;
+  unsigned long rc;
+
   if (0 != ccs) blk_addr >>= 9; // SDHC cards use block addresses
   // cmd24
-  unsigned long rc =
-    sd_cmd(0x58, blk_addr >> 24, blk_addr >> 16, blk_addr >> 8, blk_addr, 0x00);
+  rc = sd_cmd(0x58, blk_addr >> 24, blk_addr >> 16, blk_addr >> 8, blk_addr, 0x00, &dummy);
   if (0 != rc) return -1;
   sd_out(0xff); // blank 1B
   sd_out(0xfe); // Data Token
@@ -241,12 +378,22 @@ sdcard_store
   for (i = 0; i < 512; i++) sd_out(buffer[i]); // Data Block
   sd_out(0xff); // CRC dummy 1/2
   sd_out(0xff); // CRC dummy 2/2
-  if (sd_busy(0) < 0) return -3;
-  rc = sd_in(4);
-  if (sd_busy(~0) < 0) return -4;
-  if (rc != 5) return rc ? -rc : -5;
-  PIN_LOW(P_CK);
-
+  // read data response
+  if ((c = sd_response_in(10)) < 0) return -3;
+  // skip busy "0" bits on DO
+  if (sd_wait_resp(0, 1000) < 0) {
+    printf("DR: timeout\n");
+    return -3;
+  }
+  int d = c & 0xe;
+  if (d != 0x01) {
+    printf("DR: bad Data Response %02X\n", (c & 0x1f));
+    return -3;
+  } else if ((d = (c & 0x11)) != 0x05) {
+    printf("DR: data rejected %02X\n", (c & 0x1f));
+  }
+  // successfully written
+  gpio_clr_mask(1<<P_CK);
   return 0;
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Takashi TOYOSHIMA <toyoshim@gmail.com>
+ * Copyright (c) 2018, Takashi TOYOSHIMA <toyoshim@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,103 +31,77 @@
 
 #include "io.h"
 
-#include <avr/io.h>
-
-// Use stabilized data for the important ready signal, just in case.
-static int
-is_ready
-()
-{
-  int v = -1;
-  for (;;) {
-    int d = PINB & _BV(PINB6);
-    if (v != d) {
-      v = d;
-      continue;
-    }
-    break;
-  }
-  return v ? 0 : 1;
-}
-
 void
 io_init
 (void)
 {
-  // PB3: /IOE -output
-  // PB6: /READY - input, pull-up
-  // PB7: /DATA - output
-  DDRB &= ~_BV(PINB6);
-  DDRB |= _BV(PINB3) | _BV(PINB7);
-  PORTB |= _BV(PINB3) | _BV(PINB6);
 }
+
+// z80pack defines following ports.
+//   0: console status
+//   1: console data
+//   2: printer status
+//   3: printer data
+//   4: auxiliary status
+//   5: auxiliary data
+//  10: FDC drive
+//  11: FDC track
+//  12: FDC sector (low)
+//  13: FDC command
+//  14: FDC status
+//  15: DMA destination address low
+//  16: DMA destination address high
+//  17: FDC sector high
+//  20: MMU initialisation
+//  21: MMU bank select
+//  22: MMU select segment size (in pages a 256 bytes)
+//  23: MMU write protect/unprotect common memory segment
+//  25: clock command
+//  26: clock data
+//  27: 10ms timer causing maskable interrupt
+//  28: x * 10ms delay circuit for busy waiting loops
+//  29: hardware control
+//  30: CPU speed low
+//  31: CPU speed high
+//  40: passive socket #1 status
+//  41: passive socket #1 data
+//  42: passive socket #2 status
+//  43: passive socket #2 data
+//  44: passive socket #3 status
+//  45: passive socket #3 data
+//  46: passive socket #4 status
+//  47: passive socket #4 data
+//  50: client socket #1 status
+//  51: client socket #1 data
 
 void
 io_out
 (unsigned char port, unsigned char val)
 {
-  PORTD = port;
-  PORTB |= _BV(PINB7);  // Address phase
-  PORTB &= ~_BV(PINB0);  // for WRITE access
-  PORTB &= ~_BV(PINB3);  // Activate IOEXT
-
-  uint32_t timeout;
-  for (timeout = 0xffff; timeout; --timeout) {
-    if (is_ready())
-      break;
-  }
-  if (is_ready()) {
-    PORTB |= _BV(PINB3);  // Inctivate IOEXT
-    while (is_ready());
-
-    PORTD = val;
-    PORTB &= ~_BV(PINB7);  // Data phase
-    PORTB &= ~_BV(PINB3);  // Activate IOEXT
-    while (!is_ready());
-
-    PORTB |= _BV(PINB3);  // Inctivate IOEXT
-    while (is_ready());
-  } else {
-    // Revert
-    PORTB |= _BV(PINB3);
-    PORTB &= ~_BV(PINB7);
-  }
-
-  PORTB |= _BV(PINB0);  // back to READ access
+  // Following ports are handled in machine.c.
+  //  0: console status
+  //  1: console data
+  // 10: FDC drive
+  // 11: FDC track
+  // 12: FDC sector (low)
+  // 13: FDC command
+  // 14: FDC status
+  // 15: DMA destination address low
+  // 16: DMA destination address high
 }
 
 unsigned char
 io_in(unsigned char port)
 {
-  PORTD = port;
-  PORTB |= _BV(PINB7) | _BV(PINB0);  // Address phase for READ access
-  PORTB &= ~_BV(PINB3);  // Activate IOEXT
-
-  uint32_t timeout;
-  for (timeout = 0xffff; timeout; --timeout) {
-    if (is_ready())
-      break;
-  }
-  unsigned char data = 0xff;
-  if (is_ready()) {
-    PORTB |= _BV(PINB3);  // Inctivate IOEXT
-    while (is_ready());
-
-    DDRD = 0;  // Set data ports as input
-    PORTD = 0xff;  // Enable pull-ups to allow opendrain devices.
-    PORTB &= ~_BV(PINB7);  // Data phase
-    PORTB &= ~_BV(PINB3);  // Activate IOEXT
-    while (!is_ready());
-
-    data = PIND;
-    PORTB |= _BV(PINB3);  // Inctivate IOEXT
-    while (is_ready());
-    DDRD = 0xff;  // Set back data portsas output
-  } else {
-    // Revert
-    PORTB |= _BV(PINB3);
-    PORTB &= ~_BV(PINB7);
-  }
-
-  return data;
+  // Following ports are handled in machine.c.
+  //  0: console status
+  //  1: console data
+  // 10: FDC drive
+  // 11: FDC track
+  // 12: FDC sector (low)
+  // 13: FDC command
+  // 14: FDC status
+  // 15: DMA destination address low
+  // 16: DMA destination address high
+  return 0xff;
 }

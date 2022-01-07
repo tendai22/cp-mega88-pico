@@ -123,6 +123,7 @@ static unsigned long
 sd_cmd
 (char cmd, char arg0, char arg1, char arg2, char arg3, char crc)
 {
+  unsigned char rc;
   PIN_HIGH(P_DI);
   PIN_LOW(P_CS);
 
