@@ -33,6 +33,7 @@
 
 #include <stdio.h>
 #include "pico/stdlib.h"
+#if defined(USE_UART)
 #include "pico/stdio_uart.h"
 
 #define UART_ID uart_default
@@ -42,6 +43,7 @@
 // datasheet for information on which other pins can be used.
 #define UART_TX_PIN 16
 #define UART_RX_PIN 17
+#endif // defined(USE_UART)
 
 static void
 sleep
@@ -54,35 +56,72 @@ void
 con_init
 (void)
 {
+#if defined(USE_UART)
   stdio_uart_init_full(UART_ID, BAUD_RATE, UART_TX_PIN, UART_RX_PIN);
   while(uart_is_readable(UART_ID))
     uart_getc(UART_ID);
+#else
+  stdio_init_all();
+  sleep_ms(1000);
+//  while(stdio_usb_connected() == 0)
+//    ;
+  while(getchar_timeout_us(100) != PICO_ERROR_TIMEOUT)
+    ;
+#endif //defined(USE_UART)
 }
 
 void
 con_putchar
 (unsigned char c)
 {
+#if defined(USE_UART)
   while(!uart_is_writable(UART_ID))
     sleep();
   uart_putc(UART_ID, c);
+#else
+  putchar_raw(c);
+#endif // defined(USE_UART)
 }
+
+#if !defined(USE_UART)
+static int unget_char = -1;
+#endif
 
 int
 con_getchar
 (void)
 {
+#if defined(USE_UART)
   if (uart_is_readable(UART_ID)) {
     return uart_getc(UART_ID);
   }
   sleep();
   return uart_is_readable(UART_ID) ? uart_getc(UART_ID) : -1;
+#else
+  int c;
+  if ((c = unget_char) != -1) {
+    unget_char = -1;
+    return c;
+  }
+  return ((c = getchar_timeout_us(10)) != PICO_ERROR_TIMEOUT) ? c : -1;
+#endif // defined(USE_UART)
 }
 
 int
 con_peek
 (void)
 {
+#if defined(USE_UART)
   sleep();
   return uart_is_readable(UART_ID) ? 1 : 0;
+#else
+  int c;
+  if (unget_char != -1)
+    return 1;
+  if ((c = getchar_timeout_us(10)) != PICO_ERROR_TIMEOUT) {
+    unget_char = c;
+    return 1;
+  }
+  return 0;
+#endif // defined(USE_UART)
 }

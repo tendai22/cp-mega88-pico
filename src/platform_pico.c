@@ -35,8 +35,10 @@
 
 #include <stdio.h>
 #include "pico/stdlib.h"
+#if 0
 #include "pico/stdio_uart.h"
 #include "hardware/uart.h"
+#endif
 
 int
 main
@@ -51,5 +53,5 @@ platform_reset
 (void)
 {
   // so far, a temporal remedy
-  printf("platform_reset should be implemented.");
+  printf("platform_reset should be implemented.\n");
 }

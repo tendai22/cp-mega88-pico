@@ -35,7 +35,9 @@
 #include <string.h>
 #include <stdio.h>
 #include "pico/stdlib.h"
+#if defined(USE_UART)
 #include "pico/stdio_uart.h"
+#endif // defined(USE_UART)
 
 #include "sram.h"
 
@@ -54,7 +56,7 @@ extern void end_disk_write(void);
 
 #define DLY_1S 1000
 #define MAXRETRANS 25
-#define TRANSMIT_XMODEM_1K
+//#define TRANSMIT_XMODEM_1K
 
 #define UART_ID uart0
 //
@@ -62,13 +64,18 @@ extern void end_disk_write(void);
 //
 static void _outbyte(int c)
 {
+#if defined(USE_UART)
     while(!uart_is_writable(UART_ID))
         sleep_us(10);
     uart_putc(UART_ID, c);
+#else
+	putchar_raw(c);
+#endif // defined(USE_UART)
 }
 
 static int _inbyte(unsigned short timeout)
 {
+#if defined(USE_UART)
     unsigned long count = timeout * 100; // 10us unit
     while (count > 0) {
         if (uart_is_readable(UART_ID)) {
@@ -78,6 +85,12 @@ static int _inbyte(unsigned short timeout)
         count--;
     }
     return -1;
+#else
+	unsigned long to = timeout;
+	to *= 1000;
+	int c = getchar_timeout_us(to);
+	return c == PICO_ERROR_TIMEOUT ? -1 : c;
+#endif // defined(USE_UART)
 }
 
 

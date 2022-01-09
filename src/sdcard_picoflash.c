@@ -34,6 +34,8 @@
 #include <stdio.h>
 #include <string.h>
 #include "pico/stdlib.h"
+#include "pico/stdio.h"
+#include "hardware/irq.h"
 #include "hardware/clocks.h"
 //#include "hardware/spi.h"
 #include "hardware/flash.h"
@@ -108,7 +110,10 @@
 #define DISK_AREA_SIZE (1024 * 256)
 #define DRIVEA_BASE (PICO_FLASH_SIZE_BYTES - DISK_AREA_SIZE)
 
-
+// PICO_CONFIG: PICO_STDIO_USB_LOW_PRIORITY_IRQ, low priority (non hardware) IRQ number to claim for tud_task() background execution, default=31, advanced=true, group=pico_stdio_usb
+#ifndef PICO_STDIO_USB_LOW_PRIORITY_IRQ
+#define PICO_STDIO_USB_LOW_PRIORITY_IRQ 31
+#endif
 // address for erase/program operations, base is zero
 // for read operation(memcpy), base is XIP_BASE.
 #define DRIVEA_BASE_ADDR (XIP_BASE + DRIVEA_BASE)
@@ -132,7 +137,7 @@ static int
 cur_drive = -1;   // drive number
 
 static int
-debug_out = 1;
+debug_out = 0;
 
 void
 sdcard_init
@@ -143,7 +148,7 @@ sdcard_init
   cur_drive = -1;
   cur_sector = -1;
   dirty_flag = 0;
-  debug_out = 0;
+  //debug_out = 1;
 }
 
 int
@@ -220,8 +225,10 @@ flash_disk_write
     unsigned long new_sector = pos / FLASH_SECTOR_SIZE;
     int new_offset = pos % FLASH_SECTOR_SIZE;
     if (dirty_flag && cur_sector >= 0 && cur_sector != new_sector) {
+      irq_set_enabled(PICO_STDIO_USB_LOW_PRIORITY_IRQ, 0);
       flash_range_erase(DRIVEA_BASE + (cur_sector << 12), FLASH_SECTOR_SIZE);
       flash_range_program(DRIVEA_BASE + (cur_sector << 12), buffer, FLASH_SECTOR_SIZE);
+      irq_set_enabled(PICO_STDIO_USB_LOW_PRIORITY_IRQ, 1);
       dirty_flag = 0;
     }
     if (cur_sector != new_sector) {
@@ -244,8 +251,10 @@ end_flash_write
 (void)
 {
   if (dirty_flag && cur_sector >= 0) {
+      irq_set_enabled(PICO_STDIO_USB_LOW_PRIORITY_IRQ, 0);
       flash_range_erase(DRIVEA_BASE + (cur_sector << 12), FLASH_SECTOR_SIZE);
       flash_range_program(DRIVEA_BASE + (cur_sector << 12), buffer, FLASH_SECTOR_SIZE);
+      irq_set_enabled(PICO_STDIO_USB_LOW_PRIORITY_IRQ, 1);
       dirty_flag = 0;
   }
 }
@@ -258,10 +267,18 @@ flash_read
 }
 
 long
-xmodem_flash
+xmodem_receive_flash
 (void)
 {
   long len = xmodemReceive(0, DISK_SIZE);
+  return len;
+}
+
+long
+xmodem_send_flash
+(void)
+{
+  long len = xmodemTransmit(0, DISK_SIZE);
   return len;
 }
 #endif //defined(USE_FLASH)
