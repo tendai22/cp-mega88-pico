@@ -101,7 +101,7 @@ $ cp *.dsk /mnt/d/tendai22plus/Desktop/disks
 (CPMega88側)
 CPMega88> xr
 ```
-* Teraterm側は、[ファイル]->[転送]->[XMODEM]->[送信]で、出てくるダイアログでディスクイメージを選ぶ。`cmm2-1.dsk`がよい。
+* Teraterm側は、[ファイル]->[転送]->[XMODEM]->[送信]で、出てくるダイアログでディスクイメージを選ぶ。`cpm2-1.dsk`がよい。
 * 無事アップロードと書き込みが完了すると
 ```
 CC
