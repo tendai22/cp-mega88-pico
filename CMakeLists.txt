@@ -3,9 +3,9 @@ set(PICO_SDK_PATH "/home/kuma/pico/pico-sdk")
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include(pico_sdk_import.cmake)
 
-project(cpmega88 C ASM)
+project(cpmega88 C CXX ASM)
 set(CMAKE_C_STANDART 11)
-#set(CMAKE_CXX_STANDART 17)
+set(CMAKE_CXX_STANDART 17)
 
 pico_sdk_init()
 
