@@ -114,30 +114,50 @@ CP/Mega88>b
 64K CP/M Vers. 2.2 (Z80 CBIOS V1.2 for Z80SIM, Copyright 1988-2007 by Udo Munk)
 
 A>dir
-A: DUMP     COM : MBASIC   COM : SUBMIT   COM : ED       COM
-A: STAT     COM : BYE      COM : ASCIIART BAS : TRACE    UTL
-A: HIST     UTL : RESET    COM : M        SUB : CLS      COM
-A: LOAD     COM : XSUB     COM : PIP      COM : SYSGEN   COM
+A: DUMP     COM : SDIR     COM : SUBMIT   COM : ED       COM
+A: STAT     COM : BYE      COM : RMAC     COM : CREF80   COM
+A: LINK     COM : L80      COM : M80      COM : SID      COM
+A: RESET    COM : WM       HLP : ZSID     COM : MAC      COM
+A: TRACE    UTL : HIST     UTL : LIB80    COM : WM       COM
+A: HIST     COM : DDT      COM : Z80ASM   COM : CLS      COM
+A: SLRNK    COM : MOVCPM   COM : ASM      COM : LOAD     COM
+A: XSUB     COM : LIB      COM : PIP      COM : SYSGEN   COM
 A>stat *.*
 
  Recs  Bytes  Ext Acc
-    3     1k    1 R/W A:ASCIIART.BAS
-    2     1k    1 R/W A:BYE.COM
+   64     8k    1 R/W A:ASM.COM
+    1     1k    1 R/W A:BYE.COM
     1     1k    1 R/W A:CLS.COM
+   32     4k    1 R/W A:CREF80.COM
+   38     5k    1 R/W A:DDT.COM
     3     1k    1 R/W A:DUMP.COM
    52     7k    1 R/W A:ED.COM
+   21     3k    1 R/W A:HIST.COM
    10     2k    1 R/W A:HIST.UTL
+   84    11k    1 R/W A:L80.COM
+   56     7k    1 R/W A:LIB.COM
+   37     5k    1 R/W A:LIB80.COM
+  122    16k    1 R/W A:LINK.COM
    14     2k    1 R/W A:LOAD.COM
-    1     1k    1 R/W A:M.SUB
-  190    24k    2 R/W A:MBASIC.COM
+  157    20k    2 R/W A:M80.COM
+   92    12k    1 R/W A:MAC.COM
+   76    10k    1 R/W A:MOVCPM.COM
    58     8k    1 R/W A:PIP.COM
-    2     1k    1 R/W A:RESET.COM
+    1     1k    1 R/W A:RESET.COM
+  106    14k    1 R/W A:RMAC.COM
+  119    15k    1 R/W A:SDIR.COM
+   61     8k    1 R/W A:SID.COM
+   68     9k    1 R/W A:SLRNK.COM
    40     5k    1 R/W A:STAT.COM
    10     2k    1 R/W A:SUBMIT.COM
     8     1k    1 R/W A:SYSGEN.COM
     9     2k    1 R/W A:TRACE.UTL
+   82    11k    1 R/W A:WM.COM
+   23     3k    1 R/W A:WM.HLP
     6     1k    1 R/W A:XSUB.COM
-Bytes Remaining On A: 181k
+  193    25k    2 R/W A:Z80ASM.COM
+   80    10k    1 R/W A:ZSID.COM
+Bytes Remaining On A: 11k
 
 A>
 ```
