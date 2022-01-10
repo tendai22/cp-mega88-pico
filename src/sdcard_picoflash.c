@@ -42,6 +42,7 @@
 
 #include "flash.h"
 #include "xmodem.h"
+#include "crc16.h"
 
 //
 // Use Pico embedded QSPI flash device as a disk drive
@@ -181,8 +182,10 @@ flush_buffer_if_necessary
     } else {
       // write it out
       if (debug_out) printf("f: %08X\n", cur_sector);
+      irq_set_enabled(PICO_STDIO_USB_LOW_PRIORITY_IRQ, false);
       flash_range_erase(DRIVEA_BASE + (cur_sector << 12), FLASH_SECTOR_SIZE);
       flash_range_program(DRIVEA_BASE + (cur_sector << 12), buffer, FLASH_SECTOR_SIZE);
+      irq_set_enabled(PICO_STDIO_USB_LOW_PRIORITY_IRQ, true);
       dirty_flag = 0;
     }
   }
@@ -225,10 +228,10 @@ flash_disk_write
     unsigned long new_sector = pos / FLASH_SECTOR_SIZE;
     int new_offset = pos % FLASH_SECTOR_SIZE;
     if (dirty_flag && cur_sector >= 0 && cur_sector != new_sector) {
-      irq_set_enabled(PICO_STDIO_USB_LOW_PRIORITY_IRQ, 0);
-      flash_range_erase(DRIVEA_BASE + (cur_sector << 12), FLASH_SECTOR_SIZE);
-      flash_range_program(DRIVEA_BASE + (cur_sector << 12), buffer, FLASH_SECTOR_SIZE);
-      irq_set_enabled(PICO_STDIO_USB_LOW_PRIORITY_IRQ, 1);
+      irq_set_enabled(PICO_STDIO_USB_LOW_PRIORITY_IRQ, false);
+//      flash_range_erase(DRIVEA_BASE + (cur_sector << 12), FLASH_SECTOR_SIZE);
+//      flash_range_program(DRIVEA_BASE + (cur_sector << 12), buffer, FLASH_SECTOR_SIZE);
+      irq_set_enabled(PICO_STDIO_USB_LOW_PRIORITY_IRQ, true);
       dirty_flag = 0;
     }
     if (cur_sector != new_sector) {
@@ -251,10 +254,10 @@ end_flash_write
 (void)
 {
   if (dirty_flag && cur_sector >= 0) {
-      irq_set_enabled(PICO_STDIO_USB_LOW_PRIORITY_IRQ, 0);
-      flash_range_erase(DRIVEA_BASE + (cur_sector << 12), FLASH_SECTOR_SIZE);
-      flash_range_program(DRIVEA_BASE + (cur_sector << 12), buffer, FLASH_SECTOR_SIZE);
-      irq_set_enabled(PICO_STDIO_USB_LOW_PRIORITY_IRQ, 1);
+      irq_set_enabled(PICO_STDIO_USB_LOW_PRIORITY_IRQ, false);
+//      flash_range_erase(DRIVEA_BASE + (cur_sector << 12), FLASH_SECTOR_SIZE);
+//      flash_range_program(DRIVEA_BASE + (cur_sector << 12), buffer, FLASH_SECTOR_SIZE);
+      irq_set_enabled(PICO_STDIO_USB_LOW_PRIORITY_IRQ, true);
       dirty_flag = 0;
   }
 }
@@ -268,17 +271,19 @@ flash_read
 
 long
 xmodem_receive_flash
-(void)
+(unsigned short *crc)
 {
   long len = xmodemReceive(0, DISK_SIZE);
+  *crc = crc16_ccitt((unsigned char *)XIP_BASE + DRIVEA_BASE, DISK_SIZE);
   return len;
 }
 
 long
 xmodem_send_flash
-(void)
+(unsigned short *crc)
 {
-  long len = xmodemTransmit(0, DISK_SIZE);
+  long len = xmodemTransmit((unsigned char *)XIP_BASE + DRIVEA_BASE, DISK_SIZE);
+  *crc = crc16_ccitt((unsigned char *)XIP_BASE + DRIVEA_BASE, DISK_SIZE);
   return len;
 }
 #endif //defined(USE_FLASH)

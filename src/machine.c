@@ -577,14 +577,17 @@ prompt
 # if defined(USE_XMODEM)
   } else if (0 == strdcmp("xr", cmd, ' ')) {
     unsigned long len;
-    len = xmodem_receive_flash();
+    unsigned short crc = 0;
+    len = xmodem_receive_flash(&crc);
     end_flash_write();
-    printf("\nwrite %ld (%lX) bytes\n", len, len);
+    printf("\nwrite %ld (%lX) bytes, crc = %04X\n", len, len, crc);
     return;
   } else if (0 == strdcmp("xs", cmd, ' ')) {
     unsigned long len;
-    len = xmodem_send_flash();
-    printf("\nsend %ld (%lX) bytes\n", len, len);
+    unsigned short crc = 0;
+    len = xmodem_send_flash(&crc);
+    printf("send %ld (%lX) bytes, crc = %04X\n", len, len, crc);
+    return;
 # endif // defined(USE_XMODEM)
 # if defined(USE_FLASH)
   } else if (0 == strdcmp("fd", cmd, ' ')) {

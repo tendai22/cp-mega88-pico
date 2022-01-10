@@ -74,7 +74,7 @@ void
 con_putchar
 (unsigned char c)
 {
-#if defined(USE_UART)
+#if 0 //defined(USE_UART)
   while(!uart_is_writable(UART_ID))
     sleep();
   uart_putc(UART_ID, c);
@@ -83,15 +83,15 @@ con_putchar
 #endif // defined(USE_UART)
 }
 
-#if !defined(USE_UART)
+//#if !defined(USE_UART)
 static int unget_char = -1;
-#endif
+//#endif
 
 int
 con_getchar
 (void)
 {
-#if defined(USE_UART)
+#if 0 //defined(USE_UART)
   if (uart_is_readable(UART_ID)) {
     return uart_getc(UART_ID);
   }
@@ -111,7 +111,7 @@ int
 con_peek
 (void)
 {
-#if defined(USE_UART)
+#if 0 //defined(USE_UART)
   sleep();
   return uart_is_readable(UART_ID) ? 1 : 0;
 #else
