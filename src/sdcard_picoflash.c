@@ -38,6 +38,7 @@
 #include "hardware/irq.h"
 #include "hardware/clocks.h"
 #include "hardware/flash.h"
+#include "hardware/sync.h"
 
 #include "flash.h"
 #include "xmodem.h"
@@ -171,18 +172,20 @@ static void
 flash_erase_and_program_sector
 (uint32_t addr, unsigned char *src)
 {
-  uint32_t mask = 0;
+  uint32_t ints = 0;
   // disable all of the irqs and perform erase and program
-  for (uint32_t i = 0; i < 32; ++i) {
-    if (irq_is_enabled(i))
-      mask |= (1u << i);
-  }
-  irq_set_mask_enabled(mask, false);  // all irq disabled
+//  for (uint32_t i = 0; i < 32; ++i) {
+//    if (irq_is_enabled(i))
+//      mask |= (1u << i);
+//  }
+//  irq_set_mask_enabled(mask, false);  // all irq disabled
 //  flash_range_erase(addr, FLASH_SECTOR_SIZE);
 //  flash_range_program(DRIVEA_BASE + (cur_sector << 12), buffer, FLASH_SECTOR_SIZE);
+  ints = save_and_disable_interrupts();
   flash_range_erase(addr, FLASH_SECTOR_SIZE);
   flash_range_program(addr, src, FLASH_SECTOR_SIZE);
-  irq_set_mask_enabled(mask, true);
+//  irq_set_mask_enabled(mask, true);
+  restore_interrupts(ints);
 }
 
 static void

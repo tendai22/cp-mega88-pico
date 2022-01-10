@@ -50,10 +50,10 @@
 // CS  GP01
 // SCK GP02
 // TX  GP03
-#define P_DO 0
-#define P_CS 1
-#define P_CK 2
-#define P_DI 3
+//#define P_DO 0
+//#define P_CS 1
+//#define P_CK 2
+//#define P_DI 3
 
 static unsigned char
 buffer[512];

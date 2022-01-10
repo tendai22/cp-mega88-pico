@@ -33,14 +33,13 @@
 
 #include <stdio.h>
 #include "pico/stdlib.h"
-//#if defined(USE_UART)
-//#include "pico/stdio_uart.h"
-
 
 #if defined(LIB_PICO_STDIO_UART)
+//
+// USE_UART macros
+//
 #define UART_ID uart_default
 #define BAUD_RATE 115200
-
 // We are using pins 0 and 1, but see the GPIO function select table in the
 // datasheet for information on which other pins can be used.
 #define UART_TX_PIN 16
@@ -59,13 +58,10 @@ con_init
 (void)
 {
 #if defined(LIB_PICO_STDIO_UART)
-  // for stdio_uart mode
+  // stdio_uart mode
   stdio_uart_init_full(UART_ID, BAUD_RATE, UART_TX_PIN, UART_RX_PIN);
-//  while(uart_is_readable(UART_ID))
-//    uart_getc(UART_ID);
-#elif defined(LIB_PICO_STDIO_USB) //defined (USE_UART)
+#elif defined(LIB_PICO_STDIO_USB)
   // for stdio_usb mode
-#warning "use stdio_usb"
   stdio_init_all();
   sleep_ms(1000);
 #endif //defined(USE_UART)
