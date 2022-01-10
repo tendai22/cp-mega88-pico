@@ -1,3 +1,16 @@
+cmake_minimum_required(VERSION 3.16)
+set(PICO_SDK_PATH "/home/kuma/pico/pico-sdk")
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include(pico_sdk_import.cmake)
+
+project(cpmega88 C ASM)
+set(CMAKE_C_STANDART 11)
+#set(CMAKE_CXX_STANDART 17)
+
+pico_sdk_init()
+
+include_directories(${PICO_SDK_PATH})
+
 add_executable(cpmega88
         ./src/platform_pico.c
         ./src/machine.c
@@ -28,7 +41,8 @@ target_compile_options(cpmega88
 
 
 # pull in common dependencies
-target_link_libraries(cpmega88 pico_stdlib
+target_link_libraries(cpmega88
+        pico_stdlib
         hardware_flash
         hardware_spi
 #        pico_stdio_uart
@@ -44,4 +58,4 @@ pico_enable_stdio_usb(cpmega88 1)
 pico_add_extra_outputs(cpmega88)
 
 # add url via pico_set_program_url
-example_auto_set_url(cpmega88)
+#example_auto_set_url(cpmega88)
