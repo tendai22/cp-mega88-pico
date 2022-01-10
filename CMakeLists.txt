@@ -23,7 +23,7 @@ target_compile_options(cpmega88
         PUBLIC -DUSE_FLASH
         PUBLIC -DUSE_XMODEM
         PUBLIC -DMON_MEM
-        PUBLIC -DUSE_UART
+#        PUBLIC -DUSE_UART
         )
 
 
@@ -31,13 +31,14 @@ target_compile_options(cpmega88
 target_link_libraries(cpmega88 pico_stdlib
         hardware_flash
         hardware_spi
-        pico_stdio_uart
+#        pico_stdio_uart
+        pico_stdio_usb
         )
 
 # use UART
-pico_enable_stdio_uart(cpmega88 1)
+pico_enable_stdio_uart(cpmega88 0)
 # use USB
-pico_enable_stdio_usb(cpmega88 0)
+pico_enable_stdio_usb(cpmega88 1)
 
 # create map/bin/hex file etc.
 pico_add_extra_outputs(cpmega88)

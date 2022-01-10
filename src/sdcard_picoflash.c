@@ -37,7 +37,6 @@
 #include "pico/stdio.h"
 #include "hardware/irq.h"
 #include "hardware/clocks.h"
-//#include "hardware/spi.h"
 #include "hardware/flash.h"
 
 #include "flash.h"
@@ -149,7 +148,6 @@ sdcard_init
   cur_drive = -1;
   cur_sector = -1;
   dirty_flag = 0;
-  //debug_out = 1;
 }
 
 int
@@ -170,6 +168,24 @@ sdcard_buffer_dirty
 }
 
 static void
+flash_erase_and_program_sector
+(uint32_t addr, unsigned char *src)
+{
+  uint32_t mask = 0;
+  // disable all of the irqs and perform erase and program
+  for (uint32_t i = 0; i < 32; ++i) {
+    if (irq_is_enabled(i))
+      mask |= (1u << i);
+  }
+  irq_set_mask_enabled(mask, false);  // all irq disabled
+//  flash_range_erase(addr, FLASH_SECTOR_SIZE);
+//  flash_range_program(DRIVEA_BASE + (cur_sector << 12), buffer, FLASH_SECTOR_SIZE);
+  flash_range_erase(addr, FLASH_SECTOR_SIZE);
+  flash_range_program(addr, src, FLASH_SECTOR_SIZE);
+  irq_set_mask_enabled(mask, true);
+}
+
+static void
 flush_buffer_if_necessary
 (void)
 {
@@ -182,10 +198,11 @@ flush_buffer_if_necessary
     } else {
       // write it out
       if (debug_out) printf("f: %08X\n", cur_sector);
-      irq_set_enabled(PICO_STDIO_USB_LOW_PRIORITY_IRQ, false);
-      flash_range_erase(DRIVEA_BASE + (cur_sector << 12), FLASH_SECTOR_SIZE);
-      flash_range_program(DRIVEA_BASE + (cur_sector << 12), buffer, FLASH_SECTOR_SIZE);
-      irq_set_enabled(PICO_STDIO_USB_LOW_PRIORITY_IRQ, true);
+      flash_erase_and_program_sector(DRIVEA_BASE + (cur_sector << 12), buffer);
+//      irq_set_enabled(PICO_STDIO_USB_LOW_PRIORITY_IRQ, false);
+//      flash_range_erase(DRIVEA_BASE + (cur_sector << 12), FLASH_SECTOR_SIZE);
+//      flash_range_program(DRIVEA_BASE + (cur_sector << 12), buffer, FLASH_SECTOR_SIZE);
+//      irq_set_enabled(PICO_STDIO_USB_LOW_PRIORITY_IRQ, true);
       dirty_flag = 0;
     }
   }
@@ -223,15 +240,13 @@ flash_disk_write
 (unsigned long pos, const unsigned char *src, int len)
 {
   int n;
+//  static uint32_t mask;
 
   while (len > 0) {
     unsigned long new_sector = pos / FLASH_SECTOR_SIZE;
     int new_offset = pos % FLASH_SECTOR_SIZE;
     if (dirty_flag && cur_sector >= 0 && cur_sector != new_sector) {
-      irq_set_enabled(PICO_STDIO_USB_LOW_PRIORITY_IRQ, false);
-//      flash_range_erase(DRIVEA_BASE + (cur_sector << 12), FLASH_SECTOR_SIZE);
-//      flash_range_program(DRIVEA_BASE + (cur_sector << 12), buffer, FLASH_SECTOR_SIZE);
-      irq_set_enabled(PICO_STDIO_USB_LOW_PRIORITY_IRQ, true);
+      flash_erase_and_program_sector(DRIVEA_BASE + (cur_sector << 12), buffer);
       dirty_flag = 0;
     }
     if (cur_sector != new_sector) {

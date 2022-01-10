@@ -56,7 +56,7 @@ extern void end_disk_write(void);
 
 #define DLY_1S 1000
 #define MAXRETRANS 25
-//#define TRANSMIT_XMODEM_1K
+#define TRANSMIT_XMODEM_1K
 
 #define UART_ID uart0
 //

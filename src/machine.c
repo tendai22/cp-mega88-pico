@@ -638,7 +638,7 @@ prompt
   con_putsln(" m <filename>     : mount image disk");
 #  endif // defined(MON_FAT)
 #  if defined(USE_XMODEM)
-  con_putsln(" xr               : xmodem read");
+  con_putsln(" xr               : xmodem receive");
   con_putsln(" xs               : xmodem send");
 #  endif // defined(USE_XMODEM)
 #  if defined(MON_CON)
