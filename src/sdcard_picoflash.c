@@ -111,10 +111,6 @@
 #define DISK_AREA_SIZE (1024 * 256)
 #define DRIVEA_BASE (PICO_FLASH_SIZE_BYTES - DISK_AREA_SIZE)
 
-// PICO_CONFIG: PICO_STDIO_USB_LOW_PRIORITY_IRQ, low priority (non hardware) IRQ number to claim for tud_task() background execution, default=31, advanced=true, group=pico_stdio_usb
-#ifndef PICO_STDIO_USB_LOW_PRIORITY_IRQ
-#define PICO_STDIO_USB_LOW_PRIORITY_IRQ 31
-#endif
 // address for erase/program operations, base is zero
 // for read operation(memcpy), base is XIP_BASE.
 #define DRIVEA_BASE_ADDR (XIP_BASE + DRIVEA_BASE)
@@ -126,7 +122,7 @@ static unsigned long
 cur_blk;
 
 static int
-dirty_flag = 0;
+dirty_flag = 0;   // dirty if data in buffer[].
 
 static long
 cur_sector = -1;  // sector number, specifying the content of 'buffer[]'
@@ -174,17 +170,9 @@ flash_erase_and_program_sector
 {
   uint32_t ints = 0;
   // disable all of the irqs and perform erase and program
-//  for (uint32_t i = 0; i < 32; ++i) {
-//    if (irq_is_enabled(i))
-//      mask |= (1u << i);
-//  }
-//  irq_set_mask_enabled(mask, false);  // all irq disabled
-//  flash_range_erase(addr, FLASH_SECTOR_SIZE);
-//  flash_range_program(DRIVEA_BASE + (cur_sector << 12), buffer, FLASH_SECTOR_SIZE);
   ints = save_and_disable_interrupts();
   flash_range_erase(addr, FLASH_SECTOR_SIZE);
   flash_range_program(addr, src, FLASH_SECTOR_SIZE);
-//  irq_set_mask_enabled(mask, true);
   restore_interrupts(ints);
 }
 
@@ -202,10 +190,6 @@ flush_buffer_if_necessary
       // write it out
       if (debug_out) printf("f: %08X\n", cur_sector);
       flash_erase_and_program_sector(DRIVEA_BASE + (cur_sector << 12), buffer);
-//      irq_set_enabled(PICO_STDIO_USB_LOW_PRIORITY_IRQ, false);
-//      flash_range_erase(DRIVEA_BASE + (cur_sector << 12), FLASH_SECTOR_SIZE);
-//      flash_range_program(DRIVEA_BASE + (cur_sector << 12), buffer, FLASH_SECTOR_SIZE);
-//      irq_set_enabled(PICO_STDIO_USB_LOW_PRIORITY_IRQ, true);
       dirty_flag = 0;
     }
   }
@@ -272,10 +256,7 @@ end_flash_write
 (void)
 {
   if (dirty_flag && cur_sector >= 0) {
-      irq_set_enabled(PICO_STDIO_USB_LOW_PRIORITY_IRQ, false);
-//      flash_range_erase(DRIVEA_BASE + (cur_sector << 12), FLASH_SECTOR_SIZE);
-//      flash_range_program(DRIVEA_BASE + (cur_sector << 12), buffer, FLASH_SECTOR_SIZE);
-      irq_set_enabled(PICO_STDIO_USB_LOW_PRIORITY_IRQ, true);
+      flash_erase_and_program_sector(DRIVEA_BASE + (cur_sector << 12), buffer);
       dirty_flag = 0;
   }
 }
