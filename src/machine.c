@@ -31,9 +31,9 @@
 
 #include <stdio.h>
 #include "pico/stdlib.h"
-#if defined(USE_UART)
-#include "pico/stdio_uart.h"
-#endif //defined(USE_UART)
+//#if defined(USE_UART)
+//#include "pico/stdio_uart.h"
+//#endif //defined(USE_UART)
 
 #include "flash.h"
 

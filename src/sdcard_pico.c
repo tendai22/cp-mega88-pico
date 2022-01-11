@@ -35,6 +35,7 @@
 #include "pico/stdlib.h"
 #include "hardware/clocks.h"
 #include "hardware/spi.h"
+#include "hardware/sync.h"
 
 //
 // pico specific definition
@@ -50,10 +51,10 @@
 // CS  GP01
 // SCK GP02
 // TX  GP03
-//#define P_DO 0
-//#define P_CS 1
-//#define P_CK 2
-//#define P_DI 3
+#define P_DO 0
+#define P_CS 1
+#define P_CK 2
+#define P_DI 3
 
 static unsigned char
 buffer[512];
@@ -338,6 +339,8 @@ sdcard_store
 
   if (0 != ccs) blk_addr >>= 9; // SDHC cards use block addresses
   // cmd24
+  uint32_t ints = save_and_disable_interrupts();
+
   rc = sd_cmd(0x58, blk_addr >> 24, blk_addr >> 16, blk_addr >> 8, blk_addr, 0x00, &dummy);
   if (0 != rc) return -1;
   sd_out(0xff); // blank 1B
@@ -347,21 +350,25 @@ sdcard_store
   sd_out(0xff); // CRC dummy 1/2
   sd_out(0xff); // CRC dummy 2/2
   // read data response
-  if ((c = sd_response_in(10)) < 0) return -3;
+  if ((c = sd_response_in(10)) < 0) {
+    restore_interrupts(ints);
+    return -3;
+  }
   // skip busy "0" bits on DO
-  if (sd_wait_resp(0, 1000) < 0) {
+  if (sd_wait_resp(0, 2000) < 0) {
+    restore_interrupts(ints);
     printf("DR: timeout\n");
     return -3;
   }
-  int d = c & 0xe;
-  if (d != 0x01) {
+  int d = c & 0x1f;
+  if (d != 0x05) {
+    restore_interrupts(ints);
     printf("DR: bad Data Response %02X\n", (c & 0x1f));
     return -3;
-  } else if ((d = (c & 0x11)) != 0x05) {
-    printf("DR: data rejected %02X\n", (c & 0x1f));
   }
   // successfully written
   gpio_clr_mask(1<<P_CK);
+  restore_interrupts(ints);
   return 0;
 }
 

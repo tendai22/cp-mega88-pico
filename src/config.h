@@ -32,11 +32,12 @@
 #if !defined(__config_h__)
 # define __config_h__
 
-# if defined(TEST)
-#  define CPU_EMU_C
 #if !defined(USE_FLASH)
 #  define USE_FAT
 #endif // !defined(USE_FLASH)
+
+# if defined(TEST)
+#  define CPU_EMU_C
 #if !defined(USE_FLASH)
 #  define MON_SDC
 #  define CHK_SDC
