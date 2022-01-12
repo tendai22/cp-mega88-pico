@@ -68,26 +68,6 @@ cur_blk;
 static unsigned char
 ccs;
 
-static void cs_select()
-{
-  asm volatile("nop \n nop \n nop");
-  gpio_put(P_CS, 0);  // Active low
-  asm volatile("nop \n nop \n nop");
-}
-
-static void cs_deselect()
-{
-  asm volatile("nop \n nop \n nop");
-  gpio_put(P_CS, 1);  // Active low
-  asm volatile("nop \n nop \n nop");
-}
-
-static uint8_t sdcard_spi_write(spi_inst_t *spi, const uint8_t value) {
-  u_int8_t received = SPI_FILL_CHAR;
-  spi_write_read_blocking(spi, &value, &received, 1);
-  return received;
-}
-
 static unsigned long
 sd_in
 (void)
@@ -106,6 +86,29 @@ sd_out
   spi_write_read_blocking(SPI_ID, &c, &dummy, 1);
 }
 
+static void cs_select()
+{
+  asm volatile("nop \n nop \n nop");
+  sd_out(0xff);
+  asm volatile("nop \n nop \n nop");
+  gpio_put(P_CS, 0);  // Active low
+}
+
+static void cs_deselect()
+{
+  asm volatile("nop \n nop \n nop");
+  gpio_put(P_CS, 1);  // Active low
+  sd_out(0xff);
+  asm volatile("nop \n nop \n nop");
+}
+
+static uint8_t sdcard_spi_write(spi_inst_t *spi, const uint8_t value) {
+  u_int8_t received = SPI_FILL_CHAR;
+  spi_write_read_blocking(spi, &value, &received, 1);
+  return received;
+}
+
+
 #if 1
 static int
 sd_wait_resp
@@ -117,7 +120,7 @@ sd_wait_resp
     counter--;
   }
   if (counter <= 0) {
-    printf("time out\n");
+    printf("sd_wait_resp: time out\n");
     return -1;
   }
   return c;
@@ -175,7 +178,6 @@ sd_cmd
     // Even if R1 return value, we still need to read four bytes, no special reason
     // is known.
     rc = sd_four_in();
-    cs_deselect();
     if (cmd_flag) printf("%X\n", rc);
     if (resp) *resp = rc;
     return (c & 0x04) ? -2: c;  // R7
@@ -183,12 +185,10 @@ sd_cmd
   if (0x7a == cmd) {
     if (cmd_flag) printf("%02X:", c);
     rc = sd_four_in();
-    cs_deselect();
     if (cmd_flag) printf("%X\n", rc);
     if (resp) *resp = rc;
     return c;  // R3
   }
-  sd_four_in();
   if (cmd_flag) printf("%02X\n", c);
     //else printf(".");
   return c;  // R1
@@ -203,7 +203,7 @@ sdcard_init
    * DO: in
    */
   // Port Settings
-  spi_init(spi0, 2000 * 1000);  // 2Mbit/sec
+  spi_init(spi0, 200 * 1000);  // 2Mbit/sec
   gpio_set_function(P_DO, GPIO_FUNC_SPI); // RX
   gpio_set_function(P_CK, GPIO_FUNC_SPI); // SCK
   gpio_set_function(P_DI, GPIO_FUNC_SPI); // TX
@@ -232,12 +232,14 @@ sdcard_open
     cs_deselect();
     return -1;
   }
+  cs_deselect();
   // cmd8 - SEND_IF_COND (response R7)
   rc = sd_cmd(0x48, 0x00, 0x00, 0x01, 0x0aa, 0x87, &dummy);
   if (rc < 0) {
     cs_deselect();
     return -1;
   }
+  cs_deselect();
   int type;
   if ((rc & 0x04) == 0x04) {  // CMD8 error (illegal command)
     // it means SD Version 1 (legacy card)
@@ -250,13 +252,12 @@ sdcard_open
       printf("re IDLE STATE fail\n");
       return -1;
     }
+    cs_deselect();
     // go to ACMD41 initialize
   } else if ((dummy & 0x00000fff) != 0x1aa) {
-    cs_deselect();
     printf("ERR\n");
     goto error;
   } else {
-    cs_deselect();
     printf("SD Ver.2\n");
     // 0x1aa
     type = 2; // SD2
@@ -266,8 +267,10 @@ sdcard_open
   do {
     // cmd55 - APP_CMD (response R1)
     sd_cmd(0x77, 0x00, 0x00, 0x00, 0x00, 0x01, &dummy);
+    cs_deselect();
     // acmd41 - SD_SEND_OP_COND (response R1)
     rc = sd_cmd(0x69, arg, 0x00, 0x00, 0x00, 0x77/*0x77*/, &dummy);
+    cs_deselect();
     sleep_ms(100);
     if (count++ >= 50) goto error;
   } while (rc != 0);
@@ -278,20 +281,21 @@ sdcard_open
     // cmd58 - READ_OCR (response R3)
     rc = sd_cmd(0x7a, 0x00, 0x00, 0x00, 0x00, 0xff, &dummy);//0xfd);
     ccs = (dummy & 0x40000000) ? 1 : 0; // ccs bit high means SDHC card
+    cs_deselect();
     if ((dummy & 0xC0000000) == 0xC0000000) {
       type = 3; // SDHC
       printf ("SDHC%s\n", (ccs ? " High Capacity" : ""));
     } else {
       printf("SD Ver.2+\n");
       rc = sd_cmd(0x50, 0x00, 0x00, 0x02, 0x00, 0x00, &dummy);
+      cs_deselect();
       // force 512 byte/block
     }
   }
-  gpio_clr_mask(1<<P_CK);
-  cs_deselect();
+  //gpio_clr_mask(1<<P_CK);
   return 0;
 error:
-  gpio_set_mask(1<<P_CS);
+  //gpio_set_mask(1<<P_CS);
   cs_deselect();
   return -1;
 }
@@ -308,11 +312,21 @@ sdcard_fetch
   // cmd17
   unsigned long rc =
     sd_cmd(0x51, blk_addr >> 24, blk_addr >> 16, blk_addr >> 8, blk_addr, 0x00, &dummy);
-  if (0 != rc) return -1;
+//  if (0xc1 == rc) {
+//    rc = sd_cmd(0x51, blk_addr >> 24, blk_addr >> 16, blk_addr >> 8, blk_addr, 0x00, &dummy);
+//  }
+  if (0 != rc) {
+    cs_deselect();
+    return -1;
+  }
   // Data token 0xFE
-  if ((c = sd_response_in(60)) < 0 || c != 0xfe) return -2;
+  if ((c = sd_response_in(600)) < 0 || c != 0xfe) {
+    cs_deselect();
+    return -2;
+  }
   for (int i = 0; i < 512; i++) {
     buffer[i] = sd_in();
+#define SDCARD_FETCH_DUMP 0
 #if SDCARD_FETCH_DUMP
     if ((i % 16) == 0)
       printf("%03X ", i);
@@ -325,7 +339,8 @@ sdcard_fetch
   crc |= sd_in();
   // XXX: rc check
 
-  gpio_clr_mask(1<<P_CK);
+  //gpio_clr_mask(1<<P_CK);
+  cs_deselect();
   return 0;
 }
 
@@ -342,7 +357,10 @@ sdcard_store
   uint32_t ints = save_and_disable_interrupts();
 
   rc = sd_cmd(0x58, blk_addr >> 24, blk_addr >> 16, blk_addr >> 8, blk_addr, 0x00, &dummy);
-  if (0 != rc) return -1;
+  if (0 != rc) {
+    cs_deselect();
+    return -1;
+  }
   sd_out(0xff); // blank 1B
   sd_out(0xfe); // Data Token
   int i;
@@ -350,24 +368,28 @@ sdcard_store
   sd_out(0xff); // CRC dummy 1/2
   sd_out(0xff); // CRC dummy 2/2
   // read data response
-  if ((c = sd_response_in(10)) < 0) {
+  if ((c = sd_response_in(1000)) < 0) {
     restore_interrupts(ints);
+    cs_deselect();
     return -3;
   }
   // skip busy "0" bits on DO
   if (sd_wait_resp(0, 2000) < 0) {
     restore_interrupts(ints);
+    cs_deselect();
     printf("DR: timeout\n");
     return -3;
   }
   int d = c & 0x1f;
   if (d != 0x05) {
     restore_interrupts(ints);
+    cs_deselect();
     printf("DR: bad Data Response %02X\n", (c & 0x1f));
     return -3;
   }
   // successfully written
-  gpio_clr_mask(1<<P_CK);
+  //gpio_clr_mask(1<<P_CK);
+  cs_deselect();
   restore_interrupts(ints);
   return 0;
 }

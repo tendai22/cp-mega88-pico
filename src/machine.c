@@ -803,7 +803,7 @@ sdc_chk
   int block;
   for (block = 0; block < 128; ++block) {
     unsigned short addr = block << 9;
-    sdcard_fetch(block);
+    sdcard_fetch(addr);
     int i;
     for (i = 0; i < 512; i++) sram_write(addr + i, sdcard_read(i));
     con_puts("sdc test phase 1: ");
