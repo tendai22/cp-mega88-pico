@@ -37,14 +37,16 @@
 #define OFF_FS_DESC 450
 #define OFF_P1_1SCT 454
 #define OFF_FS_TYPE 54
-#define OFF_B_P_SCT 11
-#define OFF_SCT_P_C 13
-#define OFF_SCT_RSV 14
+#define OFF_B_P_SCT 11  // BPB_BytePerSec
+#define OFF_SCT_P_C 13  // BPB_SectorPerClus
+#define OFF_SCT_RSV 14  //
 #define OFF_NUM_O_F 16
 #define OFF_ROOTNUM 17
+#define OFF_TOTSEC16 19
 #define OFF_SCT_P_F 22
+#define OFF_TOTSEC32 32
 
-static unsigned char sectors_per_cluster;
+static unsigned long sectors_per_cluster;
 static unsigned long fat_first_sect;
 static unsigned short reserved_sectors;
 
@@ -54,7 +56,9 @@ static unsigned short dir_offset;
 static unsigned short dir_cluster;
 static unsigned short dir_size;
 
-static unsigned short file_cluster;
+static unsigned long top_of_cluster;
+
+static unsigned long file_cluster;
 static unsigned long file_offset;
 static unsigned long file_size;
 
@@ -77,10 +81,11 @@ read4
 
 static int
 fetch_cluster
-(unsigned short cluster, unsigned long offset)
+(unsigned long cluster, unsigned long offset)
 {
   if ((cluster == last_cluster) &&
-      ((offset & 0xfe00) == (last_offset & 0xfe00))) return 0;
+      ((offset & 0xfffffe00) == (last_offset & 0xfffffe00))) return 0;
+  printf("fc: cluster = %ld, offset = %ld\n", cluster, offset);
   last_cluster = cluster;
   last_offset = offset;
   unsigned long sector;
@@ -94,8 +99,11 @@ fetch_cluster
       if ((cluster < 2) || (0xfff7 <= cluster)) return -2;
       offset -= (sectors_per_cluster << 9);
     }
-    unsigned long cluster_sect = dir_sector +
-        (unsigned long)(dir_size + cluster - 2) * sectors_per_cluster;
+//    unsigned long cluster_sect = dir_sector +
+//        (unsigned long)(dir_size + cluster - 2) * sectors_per_cluster;
+      unsigned long cluster_sect = top_of_cluster + (cluster - 2) * sectors_per_cluster;
+    printf("cs: %ld = cluster_sect(%ld) + (cls(%ld) - 2) * sec/cls(%ld)\n", 
+            cluster_sect, top_of_cluster, cluster, sectors_per_cluster);
     sector = cluster_sect + (offset >> 9);
   }
   return sdcard_fetch(sector << 9);
@@ -108,29 +116,107 @@ fat_init
   if (sdcard_fetch(0) < 0) return -1;
   char fs_desc = sdcard_read(OFF_FS_DESC);
   printf("fs_desc: %02X\n", fs_desc);
-  if ((0x55 != sdcard_read(510)) || (0xaa != sdcard_read(511))) return -2;
-  if ((4 != fs_desc) && (6 != fs_desc) && (0x0b != fs_desc)) return -80 - fs_desc;
+  if ((0x55 != sdcard_read(510)) || (0xaa != sdcard_read(511))) {
+    printf("bad boot sector\n");
+    return -2;
+  }
+#if 0
+  if ((4 != fs_desc) && (6 != fs_desc) && (0x0b != fs_desc)) {
+    printf("unknown desc: %02X\n", fs_desc);
+    return -80 - fs_desc;
+  }
+#endif
+  // sector zero is BPB?
+  if (0xEB == sdcard_read(0)) {
+    // Now we have already gotten BPB
+    fat_first_sect = 0;
+  } else {
+    // read BPB sector
+    fat_first_sect = read4(OFF_P1_1SCT);
+    printf("fat_first_sect: %lX (%ld)\n", fat_first_sect, fat_first_sect);
 
-  // BPB sector
-  fat_first_sect = read4(OFF_P1_1SCT);
+    if (sdcard_fetch(fat_first_sect << 9) < 0) {
+      printf("cannot read fat_first_sect\n");
+      return -3;
+    }
+  }
+  // check bpb format?
+  if ((0xEB != sdcard_read(0)) ||(0x55 != sdcard_read(510)) || (0xaa != sdcard_read(511))) {
+    printf("bad fat_first_sect\n");
+    return -4;
+  }
 
-  if (sdcard_fetch(fat_first_sect << 9) < 0) return -3;
-  if ((0x55 != sdcard_read(510)) || (0xaa != sdcard_read(511))) return -4;
-
-  unsigned short bytes_per_sector = read2(OFF_B_P_SCT);
-  unsigned char number_of_fats = sdcard_read(OFF_NUM_O_F);
-  unsigned short sectors_per_fat = read2(OFF_SCT_P_F);
+  // number of sectors
   reserved_sectors = read2(OFF_SCT_RSV);
+  unsigned short fat_start_sector = reserved_sectors;
+  //printf("fat_start_sector: %d\n", fat_start_sector);
+  unsigned long fat_size = read2(OFF_SCT_P_F); // 22 FATSz16
+  if (0 == fat_size) {
+    fat_size = read4(36); // FATSZ32
+  }
+  //printf("fat_size: %lX (%ld)\n", fat_size, fat_size);
+  unsigned char number_of_fats = sdcard_read(OFF_NUM_O_F);
+  //printf("number_of_fats: %d\n", number_of_fats);
+  unsigned short fat_sectors = fat_size * number_of_fats;
+  //printf("fat_sectors: %d\n", fat_sectors);
+
+  unsigned int rootdir_start_sector = fat_start_sector + fat_sectors;
+  //printf("rootdir_start_sector: %X (%d)\n", rootdir_start_sector, rootdir_start_sector);
+  unsigned short bytes_per_sector = read2(OFF_B_P_SCT);
+  //printf("bytes_per_sector: %d\n", bytes_per_sector);
+  unsigned long rootdir_sectors = (32 * read2(OFF_ROOTNUM) + bytes_per_sector - 1) / bytes_per_sector;
+  //printf("rootdir_sectors: %ld\n", rootdir_sectors);
+
+  unsigned long data_start_sector = rootdir_start_sector + rootdir_sectors;
+  //printf("data_start_sector: %ld\n", data_start_sector);
+  unsigned long totsec = read2(OFF_TOTSEC16);
+  //printf("totsec16: %ld\n", totsec);
+  if (0 == totsec) {
+    totsec = read4(OFF_TOTSEC32);
+  }
+  printf("totsec: %ld\n", totsec);
+  unsigned long data_sectors = totsec - data_start_sector;
   sectors_per_cluster = sdcard_read(OFF_SCT_P_C);
+  //printf("sectors_per_cluster: %d\n", sectors_per_cluster);
+  unsigned long count_of_clusters = data_sectors / sectors_per_cluster;
+  //printf("data_sectors: %ld\n", data_sectors);
+  printf("count_of_clusters: %ld\n", count_of_clusters);
+  if (count_of_clusters <= 4085) {
+    printf("FAT12\n");
+  } else if (4086 <= count_of_clusters && count_of_clusters <= 65525) {
+    printf("FAT16\n");
+  } else if (65526 <= count_of_clusters) {
+    printf("FAT32\n");
+  } else {
+    printf("FAT unbiguious\n");
+  }
+
+
+
+  unsigned short sectors_per_fat = read2(OFF_SCT_P_F);
+//  printf("sectors_per_fat: %04X (%d)\n", sectors_per_fat, sectors_per_fat);
+//  printf("reserved_sectors: %04X (%d)\n", reserved_sectors, reserved_sectors);
+  sectors_per_cluster = sdcard_read(OFF_SCT_P_C);
+//  printf("sectors_per_cluster: %02X (%d)\n", sectors_per_cluster, sectors_per_cluster);
   dir_entries = read2(OFF_ROOTNUM);
+  printf("dir_entries: %04X (%d)\n", dir_entries, dir_entries);
   dir_sector =
       fat_first_sect + reserved_sectors + sectors_per_fat * number_of_fats;
-  dir_size =
-      ((unsigned short)(dir_entries >> 4) + sectors_per_cluster - 1) /
-      sectors_per_cluster;
+  printf("dir_sector(%ld) = fat_first_sect(%ld) + resv(%ld) + (sec/fat(%ld)) * num_of_fat(%ld))\n", 
+        dir_sector, fat_first_sect, reserved_sectors, sectors_per_fat, number_of_fats);
+//  dir_size =
+//     ((unsigned short)(dir_entries >> 4) + sectors_per_cluster - 1) /
+//     sectors_per_cluster;
+  dir_size = (dir_entries * 32 + bytes_per_sector - 1) / bytes_per_sector;
+  printf("dir_size: %04X (%d)\n", dir_size, dir_size);
 
-  if (512 != bytes_per_sector) return -5;
+  top_of_cluster = fat_first_sect + reserved_sectors + fat_sectors + rootdir_sectors;
+  printf("top_of_cluster: %lX (%ld)\n", top_of_cluster, top_of_cluster);
 
+  if (512 != bytes_per_sector) {
+    printf("bad bytes_per_sector\n");
+    return -5;
+  }
   dir_cluster = 0;
   fat_rewind();
   return fs_desc;
@@ -164,6 +250,7 @@ void
 fat_name
 (char *namebuf)
 {
+  char *p = namebuf;
   unsigned short off = dir_offset % 16;
   int i;
   for (i = 0; i < (8 + 3); i++) {
@@ -174,6 +261,7 @@ fat_name
     }
   }
   *namebuf = 0;
+  //printf("[%s]\n", p);
 }
 
 char
@@ -207,8 +295,11 @@ fat_open
 (void)
 {
   unsigned short off = dir_offset % 16;
-  file_cluster = read2((off << 5) + 26);
+  unsigned long cluster = ((unsigned long)read2((off << 5) + 20)) << 16;
+  file_cluster = cluster | read2((off << 5) + 26);
+  printf("file_cluster: %lX (%ld)\n", file_cluster, file_cluster);
   file_size = fat_size();
+  printf("file_size: %ld\n", file_size);
   return fat_seek(0);
 }
 

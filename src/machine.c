@@ -272,6 +272,7 @@ mount
     //char attr = fat_attr();
     //if (0 != (0x10 & attr)) continue;
     fat_name(buf);
+    printf("%s\n", buf);
     if (0 != strdcmp(name, buf, 0)) continue;
     fat_open();
     con_putsln(" ok");

@@ -89,7 +89,7 @@ sd_out
 static void cs_select()
 {
   asm volatile("nop \n nop \n nop");
-  sd_out(0xff);
+//  sd_out(0xff);
   asm volatile("nop \n nop \n nop");
   gpio_put(P_CS, 0);  // Active low
 }
@@ -151,6 +151,7 @@ sd_four_in
 //
 // SPI Command Debug Dump
 //
+//#undef SDCARD_CMD_DUMP
 #ifdef SDCARD_CMD_DUMP
 static int cmd_flag = 1;
 #else
@@ -161,8 +162,9 @@ static int
 sd_cmd
 (char cmd, char arg0, char arg1, char arg2, char arg3, char crc, unsigned long *resp)
 {
-  int c;
+  int c = 0x01;
   unsigned long rc;
+  
   if (cmd_flag) printf("[%02X %02X %02X %02X %02X (%02X)]->", cmd, arg0, arg1, arg2, arg3, crc);
   cs_select();
   sd_out(cmd);
@@ -171,7 +173,8 @@ sd_cmd
   sd_out(arg2);
   sd_out(arg3);
   sd_out(crc);
-  if ((c = sd_response_in(20)) < 0) return -1;
+  c = sd_response_in(20);
+  if (c < 0) return -1;
   // Read remaining response bites.
   if (0x48 == cmd) {
     if (cmd_flag) printf("%02X:", c);
@@ -203,7 +206,7 @@ sdcard_init
    * DO: in
    */
   // Port Settings
-  spi_init(spi0, 200 * 1000);  // 2Mbit/sec
+  spi_init(spi0, 2000 * 1000);  // 2Mbit/sec
   gpio_set_function(P_DO, GPIO_FUNC_SPI); // RX
   gpio_set_function(P_CK, GPIO_FUNC_SPI); // SCK
   gpio_set_function(P_DI, GPIO_FUNC_SPI); // TX
@@ -228,18 +231,17 @@ sdcard_open
   unsigned long rc;
   // cmd0 - GO_IDLE_STATE (response R1)
   rc = sd_cmd(0x40, 0x00, 0x00, 0x00, 0x00, 0x95, &dummy);
+  cs_deselect();
   if (rc < 0 ||1 != rc) {
-    cs_deselect();
     return -1;
   }
   cs_deselect();
   // cmd8 - SEND_IF_COND (response R7)
   rc = sd_cmd(0x48, 0x00, 0x00, 0x01, 0x0aa, 0x87, &dummy);
+  cs_deselect();
   if (rc < 0) {
-    cs_deselect();
     return -1;
   }
-  cs_deselect();
   int type;
   if ((rc & 0x04) == 0x04) {  // CMD8 error (illegal command)
     // it means SD Version 1 (legacy card)
@@ -247,12 +249,11 @@ sdcard_open
     printf("SD Ver.1\n");
     // reset to IDLE State again
     rc = sd_cmd(0x40, 0x00, 0x00, 0x00, 0x00, 0x95, &dummy);
+    cs_deselect();
     if (rc < 0 || 1 != rc) {
-      cs_deselect();
       printf("re IDLE STATE fail\n");
       return -1;
     }
-    cs_deselect();
     // go to ACMD41 initialize
   } else if ((dummy & 0x00000fff) != 0x1aa) {
     printf("ERR\n");
@@ -280,15 +281,15 @@ sdcard_open
     // SD TYPE 2
     // cmd58 - READ_OCR (response R3)
     rc = sd_cmd(0x7a, 0x00, 0x00, 0x00, 0x00, 0xff, &dummy);//0xfd);
-    ccs = (dummy & 0x40000000) ? 1 : 0; // ccs bit high means SDHC card
     cs_deselect();
+    ccs = (dummy & 0x40000000) ? 1 : 0; // ccs bit high means SDHC card
     if ((dummy & 0xC0000000) == 0xC0000000) {
       type = 3; // SDHC
       printf ("SDHC%s\n", (ccs ? " High Capacity" : ""));
     } else {
       printf("SD Ver.2+\n");
-      rc = sd_cmd(0x50, 0x00, 0x00, 0x02, 0x00, 0x00, &dummy);
-      cs_deselect();
+      //rc = sd_cmd(0x50, 0x00, 0x00, 0x02, 0x00, 0x00, &dummy);
+      //cs_deselect();
       // force 512 byte/block
     }
   }
@@ -296,7 +297,6 @@ sdcard_open
   return 0;
 error:
   //gpio_set_mask(1<<P_CS);
-  cs_deselect();
   return -1;
 }
 
@@ -307,6 +307,7 @@ sdcard_fetch
   int c;
   uint32_t dummy, crc;
 
+  printf("sc: %lX (%ld) + %x\n", blk_addr >> 9, blk_addr >> 9, blk_addr % 512);
   cur_blk = blk_addr;
   if (0 != ccs) blk_addr >>= 9; // SDHC cards use block addresses
   // cmd17
@@ -320,25 +321,34 @@ sdcard_fetch
     return -1;
   }
   // Data token 0xFE
-  if ((c = sd_response_in(600)) < 0 || c != 0xfe) {
+  if ((c = sd_response_in(1200)) < 0 || c != 0xfe) {
     cs_deselect();
     return -2;
   }
   for (int i = 0; i < 512; i++) {
     buffer[i] = sd_in();
-#define SDCARD_FETCH_DUMP 0
-#if SDCARD_FETCH_DUMP
-    if ((i % 16) == 0)
-      printf("%03X ", i);
-    printf("%02X ", buffer[i]);
-    if ((i % 16) == 15)
-      printf("\n");
-#endif //SDCARD_FETCH_DUMP
   }
+#define SDCARD_FETCH_DUMP 1
+#if SDCARD_FETCH_DUMP
+  for (int i = 0; i < 16; ++i) {
+    char *top;
+    if ((i % 16) == 0) {
+      printf("%03X ", i);
+      top = &buffer[i];
+    }
+    printf("%02X ", buffer[i]);
+    if ((i % 16) == 15) {
+      for (int j = 0; j < 16; ++j) {
+        int c = top[j];
+        printf("%c", (' ' <= c && c <= 0x7f) ? c : '.');
+      }
+      printf("\n");
+    }
+  }
+#endif //SDCARD_FETCH_DUMP
   crc = sd_in() << 8;
   crc |= sd_in();
   // XXX: rc check
-
   //gpio_clr_mask(1<<P_CK);
   cs_deselect();
   return 0;
