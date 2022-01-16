@@ -40,7 +40,7 @@ $ cd cp-mega88-pico
 ```
 $ git checkout develop
 ```
-* ビルドする。`CMakeFile.txt`にPICO_SDK_PATHの定義が書かれているので、これを消しておくか、自分の環境のpico-sdkのありかを指すように変更しておく。
+* ビルドする。`cmake`コマンドは引数にディレクトリを渡すことに注意。ここではカレントディレクトリを指定する。
 ```
 $ cmake .
 $ make
