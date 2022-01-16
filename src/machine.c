@@ -87,6 +87,8 @@ extern uint8_t _end;
 extern uint8_t __stack;
 #endif // defined(TEST)
 
+static int fs_desc = 0;
+
 void
 disk_read
 (unsigned long blk)
@@ -104,6 +106,9 @@ void
 boot
 (void)
 {
+  if (fs_desc == 0) {
+    con_putsln("error: no boot, filesystem uninitialized");
+  }
 #if defined(CPU_EMU_C)
   cpu_8080_reset(&work);
 #else // if defined(CPU_EMU_A)
@@ -516,7 +521,10 @@ prompt
     return;
   } else if (0 == strdcmp("cd", cmd, ' ')) {
     if (NULL == arg) {
-      fat_init();
+      int rc = fat_init();
+      if (rc > 0) {
+        fs_desc = rc;
+      }
       return;
     }
     fat_rewind();
@@ -1061,6 +1069,7 @@ machine_boot
     else con_puthex(rc);
     con_putsln("");
     sd_fat = 1;
+    fs_desc = rc;
   } else {
 #if !defined(MSG_MIN)
     con_puts("FAT: ");

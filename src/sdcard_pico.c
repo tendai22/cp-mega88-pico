@@ -275,7 +275,7 @@ sdcard_open
     sleep_ms(100);
     if (count++ >= 50) goto error;
   } while (rc != 0);
-  ccs = (rc & 0x40000000) ? 1 : 0; // ccs bit high means SDHC card
+  //ccs = (rc & 0x40000000) ? 1 : 0; // ccs bit high means SDHC card
 
   if (type == 2) {
     // SD TYPE 2
