@@ -96,20 +96,27 @@ static int
 fetch_cluster
 (unsigned long cluster, unsigned long offset)
 {
+  printf("fc: cluster = %ld, offset = %ld\n", cluster, offset);
   if ((cluster == last_cluster) &&
       ((offset & 0xfffffe00) == (last_offset & 0xfffffe00))) return 0;
-  printf("fc: cluster = %ld, offset = %ld\n", cluster, offset);
   last_cluster = cluster;
   last_offset = offset;
   unsigned long sector;
   if (0 == cluster) sector = dir_sector + (offset >> 9);
   else {
+    unsigned long pos;
     while (offset > (sectors_per_cluster << 9)) {
-      unsigned long pos =
-          ((fat_first_sect + reserved_sectors) << 9) + (cluster << 1);
-      if (sdcard_fetch(pos & 0xfffffe00) < 0) return -1;
-      cluster = read2(pos & 0x000001ff);
-      if ((cluster < 2) || (0xfff7 <= cluster)) return -2;
+      if (FS_FAT16 == fs_desc) {
+        pos = ((fat_first_sect + reserved_sectors) << 9) + (cluster << 1);
+        if (sdcard_fetch(pos & 0xfffffe00) < 0) return -1;
+        cluster = read2(pos & 0x000001ff);
+        if ((cluster < 2) || (0xfff7 <= cluster)) return -2;
+      } else if (FS_FAT32 == fs_desc) {
+        pos = ((fat_first_sect + reserved_sectors) << 9) + (cluster << 2);
+        if (sdcard_fetch(pos & 0xfffffe00) < 0) return -1;
+        cluster = read4(pos & 0x000001ff);
+        if ((cluster < 2) || (0xfff7 <= cluster)) return -2;
+      }
       offset -= (sectors_per_cluster << 9);
     }
 //    unsigned long cluster_sect = dir_sector +
@@ -278,6 +285,10 @@ fat_init
     return -5;
   }
   dir_cluster = 0;
+  if (FS_FAT32 == fs_desc) {
+    dir_cluster = fat_first_cluster;
+    printf("FAT32: dir_cluster: %ld\n", dir_cluster);
+  }
   fat_rewind();
   return fs_desc;
 }
@@ -293,7 +304,8 @@ int
 fat_next
 (void)
 {
-  for (dir_offset++; dir_offset < dir_entries; dir_offset++) {
+  printf("fat_next: dir_offset: %ld, dir_entries: %ld\n", dir_offset, dir_entries);
+  for (dir_offset++; fs_desc == FS_FAT32 || dir_offset < dir_entries; dir_offset++) {
     unsigned short off = dir_offset % 16;
     if (fetch_cluster(dir_cluster, ((unsigned long)dir_offset << 5)) < 0)
       return -2;
