@@ -9,27 +9,41 @@ The original cp-mega88 locates https://github.com/toyoshim/cp-mega88.  It is an 
 * pico-sdkをインストールしてください。私はWSL派で、ビルドはWSL(Ubuntu20)で行い、ビルド結果のuf2ファイルをWindowsデスクトップにコピーし、Picoへの書き込みはWindows環境のUSBドライブにドラッグアンドドロップでやっています。USBシリアルをwsl側でアクセスできるようにする自信がない、一方で、WLS環境からファイルをWindows環境にコピーは簡単にできるので。
 
 * WSLのインストール: これは[このあたり](https://docs.microsoft.com/ja-jp/windows/wsl/install)でしょうか。
-* WSLでUbuntu20(Ubuntu18でも大丈夫だと思うけど)インストールしたら、起動して、以下のコマンドをたたく。
+* WSLでUbuntu20インストールする。
+
+> Ubuntu18の場合、cmakeのバージョンが古い(3.16以上が必要なところ、3.8が入る)ので、apt-get で cmakeをインストールしても使えない。最新版の cmake をビルドしてみたが、libssl-devが必要と言われたりして面倒くさい。今回の趣旨にそぐわないので、Ubuntu18は忘れてください。
+
+* 起動して、以下のコマンドをたたく。
 ```
 $ sudo apt update
+$ sudo apt upgrade
 $ sudo apt install gcc-arm-none-eabi build-essential
 $ sudo apt install git
+$ sudo apt install gcc cmake libnewlib-arm-none-eabi
   # もう少し入れんといかん気もするが思い出せない。各自の健闘を祈る 
 ```
+> gitは最初から入っているそうです。
+
 * pico-sdkをインストールする([技術評論社のページでどうかな](https://gihyo.jp/admin/serial/01/ubuntu-recipe/0684?page=2))。
 ```
-$ sudo apt install gcc cmake gcc-arm-none-eabi libnewlib-arm-none-eabi
 $ git clone -b master https://github.com/raspberrypi/pico-sdk.git
 $ cd pico-sdk
 $ git submodule update --init
 $ cd ..
 $ git clone -b master https://github.com/raspberrypi/pico-examples.git
 ```
-* 環境変数PICK_SDK_PATHをセットしておく。
+* 環境変数PICO_SDK_PATHをセットしておく。
 ```
-$ export PICO_SDK_PATH="$PWD/pico_sdk"
-# ~/.bashrc, ~/.loginに入れておいてもよい。
+$ export PICO_SDK_PATH="$PWD/pico-sdk"
 ```
+~/.bashrc, ~/.loginに入れて、source コマンドでスクリプトを実行しておくとよい。
+```
+$ echo 'PICO_SDK_PATH="$PWD/pico-sdk"' >> ~/.bashrc
+$ source ~/.bashrc
+```
+`source`コマンドは実行中のシェルでスクリプト実行させることを意味する。
+`~/.bashrc`に環境変数への代入を書き込んでおくと、次回のログインで実行され有効となる。
+
 * cp-mega88-picoをcloneする
 ```
 $ cd somewhere
