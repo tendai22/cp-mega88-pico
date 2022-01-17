@@ -809,9 +809,9 @@ void
 sdc_chk
 (void)
 {
-  int block;
+  long block;
   for (block = 0; block < 128; ++block) {
-    unsigned short addr = block << 9;
+    unsigned long addr = block << 9;
     sdcard_fetch(addr);
     int i;
     for (i = 0; i < 512; i++) sram_write(addr + i, sdcard_read(i));
@@ -822,8 +822,8 @@ sdc_chk
   con_putsln("");
   int err = 0;
   for (block = 0; block < 128; ++block) {
-    unsigned short addr = block << 9;
-    sdcard_fetch(block);
+    unsigned long addr = block << 9;
+    sdcard_fetch(addr);
     unsigned short i;
     for (i = 0; i < 512; i++) {
       if (sram_read(addr + i) != sdcard_read(i)) {
@@ -837,7 +837,6 @@ sdc_chk
         con_puthex(sdcard_read(i));
         con_putsln("");
         sram_write(addr + i, sdcard_read(i));
-        block--;
       }
     }
     con_puts("sdc test phase 2: ");

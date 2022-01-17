@@ -38,7 +38,7 @@ target_compile_options(cpmega88
 #        PUBLIC -DUSE_XMODEM
         PUBLIC -DSDCARD_CMD_DUMP
         PUBLIC -DMON_MEM
-#        PUBLIC -DCHK_SDC
+        PUBLIC -DCHK_SDC
 #        PUBLIC -DUSE_UART
         )
 
