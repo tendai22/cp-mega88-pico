@@ -1,3 +1,6 @@
+a.c
+a.out
+disks/
 *.o
 CMakeCache.txt
 CMakeFiles/
