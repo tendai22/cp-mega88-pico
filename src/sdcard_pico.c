@@ -68,6 +68,9 @@ cur_blk;
 static unsigned char
 ccs;
 
+static int
+debug_flg = 0;
+
 static unsigned long
 sd_in
 (void)
@@ -151,7 +154,7 @@ sd_four_in
 //
 // SPI Command Debug Dump
 //
-//#undef SDCARD_CMD_DUMP
+#undef SDCARD_CMD_DUMP
 #ifdef SDCARD_CMD_DUMP
 static int cmd_flag = 1;
 #else
@@ -307,7 +310,7 @@ sdcard_fetch
   int c;
   uint32_t dummy, crc;
 
-  printf("sc: %lX (%ld) + %x\n", blk_addr >> 9, blk_addr >> 9, blk_addr % 512);
+  if (debug_flg) printf("sf: %lX (%ld) + %x\n", blk_addr >> 9, blk_addr >> 9, blk_addr % 512);
   cur_blk = blk_addr;
   if (0 != ccs) blk_addr >>= 9; // SDHC cards use block addresses
   // cmd17
@@ -328,24 +331,23 @@ sdcard_fetch
   for (int i = 0; i < 512; i++) {
     buffer[i] = sd_in();
   }
-#define SDCARD_FETCH_DUMP 1
-#if SDCARD_FETCH_DUMP
-  for (int i = 0; i < 16; ++i) {
-    char *top;
-    if ((i % 16) == 0) {
-      printf("%03X ", i);
-      top = &buffer[i];
-    }
-    printf("%02X ", buffer[i]);
-    if ((i % 16) == 15) {
-      for (int j = 0; j < 16; ++j) {
-        int c = top[j];
-        printf("%c", (' ' <= c && c <= 0x7f) ? c : '.');
+  if (debug_flg) {
+    for (int i = 0; i < 16; ++i) {
+      char *top;
+      if ((i % 16) == 0) {
+        printf("%03X ", i);
+        top = &buffer[i];
       }
-      printf("\n");
+      printf("%02X ", buffer[i]);
+      if ((i % 16) == 15) {
+        for (int j = 0; j < 16; ++j) {
+          int c = top[j];
+          printf("%c", (' ' <= c && c <= 0x7f) ? c : '.');
+        }
+        printf("\n");
+      }
     }
   }
-#endif //SDCARD_FETCH_DUMP
   crc = sd_in() << 8;
   crc |= sd_in();
   // XXX: rc check

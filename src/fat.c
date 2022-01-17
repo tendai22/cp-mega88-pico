@@ -78,6 +78,8 @@ static unsigned short last_cluster = 0xffff;
 static unsigned long last_offset = 0;
 static unsigned char fs_desc = 0;
 
+static int fat_debug = 1;
+
 static unsigned short
 read2
 (unsigned short off)
@@ -96,7 +98,7 @@ static int
 fetch_cluster
 (unsigned long cluster, unsigned long offset)
 {
-  printf("fc: cluster = %ld, offset = %ld\n", cluster, offset);
+  if (fat_debug) printf("fc: cluster = %ld, offset = %ld\n", cluster, offset);
   if ((cluster == last_cluster) &&
       ((offset & 0xfffffe00) == (last_offset & 0xfffffe00))) return 0;
   last_cluster = cluster;
@@ -117,13 +119,13 @@ fetch_cluster
         cluster = read4(pos & 0x000001ff);
         if ((cluster < 2) || (0xfff7 <= cluster)) return -2;
       }
+      if (fat_debug) printf("%ld ", cluster);
       offset -= (sectors_per_cluster << 9);
     }
 //    unsigned long cluster_sect = dir_sector +
 //        (unsigned long)(dir_size + cluster - 2) * sectors_per_cluster;
       unsigned long cluster_sect = top_of_cluster + (cluster - offset_cluster) * sectors_per_cluster;
-    printf("cs: %ld = cluster_sect(%ld) + (cls(%ld) - 2) * sec/cls(%ld)\n", 
-            cluster_sect, top_of_cluster, cluster, sectors_per_cluster);
+    if (fat_debug) printf(" cluster_sect: %ld\n", cluster_sect);
     sector = cluster_sect + (offset >> 9);
   }
   return sdcard_fetch(sector << 9);
@@ -304,7 +306,7 @@ int
 fat_next
 (void)
 {
-  printf("fat_next: dir_offset: %ld, dir_entries: %ld\n", dir_offset, dir_entries);
+  if (fat_debug) printf("fat_next: dir_offset: %ld, dir_entries: %ld\n", dir_offset, dir_entries);
   for (dir_offset++; fs_desc == FS_FAT32 || dir_offset < dir_entries; dir_offset++) {
     unsigned short off = dir_offset % 16;
     if (fetch_cluster(dir_cluster, ((unsigned long)dir_offset << 5)) < 0)
@@ -316,13 +318,6 @@ fat_next
     return dir_offset;
   }
   return -1;
-}
-
-int
-fat_next32
-(void)
-{
-
 }
 
 void
@@ -340,7 +335,6 @@ fat_name
     }
   }
   *namebuf = 0;
-  //printf("[%s]\n", p);
 }
 
 char
@@ -376,9 +370,9 @@ fat_open
   unsigned short off = dir_offset % 16;
   unsigned long cluster = ((unsigned long)read2((off << 5) + 20)) << 16;
   file_cluster = cluster | read2((off << 5) + 26);
-  printf("file_cluster: %lX (%ld)\n", file_cluster, file_cluster);
+  if (fat_debug) printf("file_cluster: %lX (%ld)\n", file_cluster, file_cluster);
   file_size = fat_size();
-  printf("file_size: %ld\n", file_size);
+  if (fat_debug) printf("file_size: %ld\n", file_size);
   return fat_seek(0);
 }
 
@@ -400,3 +394,31 @@ fat_read
 {
   return fetch_cluster(file_cluster, file_offset);
 }
+
+#if defined(CHK_FAT)
+void
+fat_chk(void)
+{
+  if (file_cluster == 0) {
+    printf("fat file has not yet opened\n");
+    return;
+  }
+  //
+  int flag_save = fat_debug;
+  fat_debug = 1;
+  unsigned long offset;
+  for (offset = 0; offset < file_size; offset += 512) {
+    fetch_cluster(file_cluster, offset);
+    for (int i = 0; i < 16; ++i) {
+      if ((i % 16) == 0) {
+        printf("%03X ", i);
+      }
+      printf("%02X ", sdcard_read(i));
+      if ((i % 16) == 15) {
+        printf("\n");
+      }
+    }
+  }
+  fat_debug = flag_save;
+}
+#endif //defined(CHK_FAT)

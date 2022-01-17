@@ -617,6 +617,12 @@ prompt
     }
     return;
 # endif // defined(USE_FLASH)
+# if defined(CHK_FAT)
+  } else if (0 == strdcmp("tf", cmd, ' ')) {
+    // test fat
+    fat_chk();
+    return;
+# endif // defined(CHK_FAT)
 #endif // defined(MON_CON)
   }
  usage:
@@ -655,6 +661,9 @@ prompt
 #   if defined(EFI)
   con_putsln(" efi <on/off>     : EFI terminal mode");
 #   endif // defined(EFI)
+#   if defined(CHK_FAT)
+  con_putsln(" tf               : test fat (scan mounted fat file)");
+#   endif // defined(CHK_FAT)
 #  endif // defined(MON_CON)
 # else // !defined(MSG_MIN)
   con_puts("  CMD R;B;WP t;A t");

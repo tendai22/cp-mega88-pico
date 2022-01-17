@@ -42,5 +42,8 @@ unsigned long fat_size(void);
 int fat_open(void);
 int fat_seek(unsigned long pos);
 int fat_read(void);
+#if defined(CHK_FAT)
+void fat_chk(void);
+#endif // defined(CHK_FAT)
 
 #endif // !defined(__fat_h__)
