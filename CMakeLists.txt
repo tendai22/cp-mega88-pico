@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-set(PICO_SDK_PATH "/home/kuma/pico/pico-sdk")
+#set(PICO_SDK_PATH "/home/kuma/pico/pico-sdk")
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include(pico_sdk_import.cmake)
 

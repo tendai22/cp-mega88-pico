@@ -11,7 +11,7 @@ The original cp-mega88 locates https://github.com/toyoshim/cp-mega88.  It is an 
 * WSLのインストール: これは[このあたり](https://docs.microsoft.com/ja-jp/windows/wsl/install)でしょうか。
 * WSLでUbuntu20インストールする。
 
-> Ubuntu18の場合、cmakeのバージョンが古い(3.16以上が必要なところ、3.8が入る)ので、apt-get で cmakeをインストールしても使えない。最新版の cmake をビルドしてみたが、libssl-devが必要と言われたりして面倒くさい。今回の趣旨にそぐわないので、Ubuntu18は忘れてください。
+> Ubuntu18の場合、cmakeのバージョンが古い(3.16以上が必要なところ、3.8 or 3.10が入る)ので、apt-get で cmakeをインストールしても使えない。最新版の cmake をビルドしてみたが、libssl-devが必要と言われたりして面倒くさい。今回の趣旨にそぐわないので、Ubuntu18は忘れてください。
 
 * 起動して、以下のコマンドをたたく。
 ```
