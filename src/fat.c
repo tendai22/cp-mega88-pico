@@ -78,7 +78,7 @@ static unsigned short last_cluster = 0xffff;
 static unsigned long last_offset = 0;
 static unsigned char fs_desc = 0;
 
-static int fat_debug = 1;
+static int fat_debug = 0;
 
 static unsigned short
 read2
@@ -118,10 +118,28 @@ fetch_cluster
         if (sdcard_fetch(pos & 0xfffffe00) < 0) return -1;
         cluster = read4(pos & 0x000001ff);
         if ((cluster < 2) || (0xfff7 <= cluster)) return -2;
+      } else if (FS_FAT12 == fs_desc) {
+        pos = ((fat_first_sect + reserved_sectors) << 9) + ((cluster) >> 1) * 3 + (cluster & 1); 
+        //printf("pos: sector: %ld, off:%ld\n", pos >> 9, pos & 0x1ff);
+        if (sdcard_fetch(pos & 0xfffffe00) < 0) return -1;
+        unsigned short lo = sdcard_read(pos & 0x1ff);
+        unsigned short hi = sdcard_read((pos + 1) & 0x1ff);
+        if ((pos & 0x1ff) == 0x1ff) {
+          // go over the next sector
+          if (sdcard_fetch((pos & 0xfffffe00) + 0x200) < 0) return -1;
+          hi = sdcard_read((pos + 1) & 0x1ff);
+        }
+        if (cluster & 1) {    // odd number
+          cluster = ((lo >> 4) & 0xf) |((hi << 4) & 0xff0);
+        } else {              // even
+          cluster = lo | ((hi << 8) & 0xf00);
+        }
+        if ((cluster < 2) || (0xff7 <= cluster)) return -2;
       }
-      if (fat_debug) printf("%ld ", cluster);
+      if (fat_debug) printf("%03X ", cluster);
       offset -= (sectors_per_cluster << 9);
     }
+
 //    unsigned long cluster_sect = dir_sector +
 //        (unsigned long)(dir_size + cluster - 2) * sectors_per_cluster;
       unsigned long cluster_sect = top_of_cluster + (cluster - offset_cluster) * sectors_per_cluster;
@@ -307,7 +325,7 @@ fat_next
 (void)
 {
   if (fat_debug) printf("fat_next: dir_offset: %ld, dir_entries: %ld\n", dir_offset, dir_entries);
-  for (dir_offset++; fs_desc == FS_FAT32 || dir_offset < dir_entries; dir_offset++) {
+  for (dir_offset++; FS_FAT32 == fs_desc || dir_offset < dir_entries; dir_offset++) {
     unsigned short off = dir_offset % 16;
     if (fetch_cluster(dir_cluster, ((unsigned long)dir_offset << 5)) < 0)
       return -2;
@@ -405,7 +423,7 @@ fat_chk(void)
   }
   //
   int flag_save = fat_debug;
-  fat_debug = 1;
+  //fat_debug = 1;
   unsigned long offset;
   for (offset = 0; offset < file_size; offset += 512) {
     fetch_cluster(file_cluster, offset);
