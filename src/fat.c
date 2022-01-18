@@ -120,7 +120,6 @@ fetch_cluster
         if ((cluster < 2) || (0xfff7 <= cluster)) return -2;
       } else if (FS_FAT12 == fs_desc) {
         pos = ((fat_first_sect + reserved_sectors) << 9) + ((cluster) >> 1) * 3 + (cluster & 1); 
-        //printf("pos: sector: %ld, off:%ld\n", pos >> 9, pos & 0x1ff);
         if (sdcard_fetch(pos & 0xfffffe00) < 0) return -1;
         unsigned short lo = sdcard_read(pos & 0x1ff);
         unsigned short hi = sdcard_read((pos + 1) & 0x1ff);
@@ -139,9 +138,6 @@ fetch_cluster
       if (fat_debug) printf("%03X ", cluster);
       offset -= (sectors_per_cluster << 9);
     }
-
-//    unsigned long cluster_sect = dir_sector +
-//        (unsigned long)(dir_size + cluster - 2) * sectors_per_cluster;
       unsigned long cluster_sect = top_of_cluster + (cluster - offset_cluster) * sectors_per_cluster;
     if (fat_debug) printf(" cluster_sect: %ld\n", cluster_sect);
     sector = cluster_sect + (offset >> 9);
@@ -154,27 +150,19 @@ fat_init
 (void)
 {
   if (sdcard_fetch(0) < 0) return -1;
-  fs_desc = sdcard_read(OFF_FS_DESC);
-  printf("fs_desc: %02X\n", fs_desc);
+//  fs_desc = sdcard_read(OFF_FS_DESC);
+//  printf("fs_desc: %02X\n", fs_desc);
   if ((0x55 != sdcard_read(510)) || (0xaa != sdcard_read(511))) {
     printf("bad boot sector\n");
     return -2;
   }
-#if 0
-  if ((4 != fs_desc) && (6 != fs_desc) && (0x0b != fs_desc)) {
-    printf("unknown desc: %02X\n", fs_desc);
-    return -80 - fs_desc;
-  }
-#endif
   // sector zero is BPB?
   if (0xEB == sdcard_read(0)) {
     // Now we have already gotten BPB
     fat_first_sect = 0;
   } else {
-    // read BPB sector
+    // We have MBR, now.  Read BPB sector
     fat_first_sect = read4(OFF_P1_1SCT);
-    printf("fat_first_sect: %lX (%ld)\n", fat_first_sect, fat_first_sect);
-
     if (sdcard_fetch(fat_first_sect << 9) < 0) {
       printf("cannot read fat_first_sect\n");
       return -3;
