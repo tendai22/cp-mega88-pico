@@ -53,5 +53,6 @@ platform_reset
   //printf("platform_reset should be implemented.\n");
   printf("rebooting ...\n");
   watchdog_reboot(0, SRAM_END, 500);
-  while (1) sleep_ms(1);
+  while (1)
+    sleep_ms(1);
 }

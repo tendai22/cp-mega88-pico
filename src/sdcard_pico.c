@@ -123,7 +123,7 @@ sd_wait_resp
     counter--;
   }
   if (counter <= 0) {
-    printf("sd_wait_resp: time out\n");
+    //printf("sd_wait_resp: time out\n");
     return -1;
   }
   return c;

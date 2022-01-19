@@ -415,12 +415,17 @@ prompt
       addr = n;
     }
     for (int i = 0; i < 256; ++i, ++addr) {
+      unsigned short top = addr;
       if (i % 16 == 0) {
         printf("%04X ", addr);
       }
       unsigned char c = sram_read(addr);
       printf("%02X ", c);
       if ((i % 16) == 15) {
+        for (int j = 0; j < 16; ++j) {
+          c = sram_read(top + j);
+          printf ("%c", (0x20 <= c && c <= 0x7f) ? c : '.');
+        }
         printf("\n");
       }
     }
@@ -1066,6 +1071,7 @@ machine_boot
     con_puts("SDC: err(");
     con_puthex(-rc);
     con_putsln(")");
+    goto skip_fat;
   }
 #endif // !defined(MSG_MIN);
 #if defined(USE_FAT)
@@ -1087,6 +1093,7 @@ machine_boot
 #endif // !defined(MSG_MIN);
   }
 #endif // defined(USE_FAT)
+skip_fat:
 #if defined(CPU_EMU_C)
   work.load_8 = &sram_read;
   work.store_8 = &sram_write;
