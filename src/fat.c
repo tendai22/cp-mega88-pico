@@ -318,8 +318,9 @@ fat_next
     if (fetch_cluster(dir_cluster, ((unsigned long)dir_offset << 5)) < 0)
       return -2;
     unsigned char first_char = sdcard_read(off << 5);
-    if (0 == first_char) continue;
-    if (0 != (0x80 & first_char)) continue;
+    if (0 == first_char) break;
+    if (0xe5 == first_char) continue;
+  //  if (0 != (0x80 & first_char)) continue;
     if (0x0f == fat_attr()) continue;
     return dir_offset;
   }
@@ -356,7 +357,8 @@ fat_chdir
 (void)
 {
   unsigned short off = dir_offset % 16;
-  dir_cluster = read2((off << 5) + 26);
+  dir_cluster = ((unsigned long)read2((off << 5) + 20) << 16) | read2((off << 5) + 26);
+  printf("chdir: new cluster: %0X (%ld)\n", dir_cluster, dir_cluster);
   fat_rewind();
   return 0;
 }
