@@ -35,10 +35,7 @@
 
 #include <stdio.h>
 #include "pico/stdlib.h"
-#if 0
-#include "pico/stdio_uart.h"
-#include "hardware/uart.h"
-#endif
+#include "hardware/watchdog.h"
 
 int
 main
@@ -53,5 +50,8 @@ platform_reset
 (void)
 {
   // so far, a temporal remedy
-  printf("platform_reset should be implemented.\n");
+  //printf("platform_reset should be implemented.\n");
+  printf("rebooting ...\n");
+  watchdog_reboot(0, SRAM_END, 500);
+  while (1) sleep_ms(1);
 }
