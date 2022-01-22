@@ -234,11 +234,11 @@ strndcmp
   return 0;
 }
 
-int
+unsigned long
 getnum
 (char *s)
 {
-  int rc = 0;
+  long rc = 0;
   if (0 == strndcmp(s, "0x", 2, 0)) {
     s += 2;
     for (;;) {
@@ -268,15 +268,17 @@ void
 mount
 (char *name)
 {
+  char buf[32];
+  buf[0] = '\0';
   con_puts("A: ");
   con_puts(name);
   fat_rewind();
   for (;;) {
     if (fat_next() < 0) break;
-    char buf[8 + 1 + 3 + 1];
-    //char attr = fat_attr();
-    //if (0 != (0x10 & attr)) continue;
-    fat_name(buf);
+    char attr = fat_attr();
+    printf("attr: %02X\n", attr);
+    if (0 != (0x10 & attr)) continue; // ignore if it it a directory
+    fat_name(buf, sizeof buf);
     if (0 == buf[0]) return;
     if (0 != strdcmp(name, buf, 0)) continue;
     // found an entry
@@ -508,11 +510,12 @@ prompt
 #if defined(MON_FAT)
   } else if (0 == strdcmp("ls", cmd, 0)) {
     fat_rewind();
+    char name[32];
+    name[0] = '\0';
     for (;;) {
       if (fat_next() < 0) break;
-      char name[8 + 1 + 3 + 1];
       char attr = fat_attr();
-      fat_name(name);
+      fat_name(name, sizeof name);
       con_putchar(' ');
       con_putchar((0 != (0x10 & attr))? 'd': '-');
 # if !defined(MSG_MIN)
@@ -534,12 +537,13 @@ prompt
       return;
     }
     fat_rewind();
+    char name[32];
+    name[0] == '\0';
     for (;;) {
       if (fat_next() < 0) break;
-      char name[8 + 1 + 3 + 1];
       char attr = fat_attr();
       if (0 == (0x10 & attr)) continue;
-      fat_name(name);
+      fat_name(name, sizeof name);
       if (0 != strdcmp(arg, name, 0)) continue;
       fat_chdir();
       break;

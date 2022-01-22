@@ -35,7 +35,7 @@
 int fat_init(void);
 void fat_rewind(void);
 int fat_next(void);
-void fat_name(char *namebuf);
+void fat_name(char *namebuf, int length);
 char fat_attr(void);
 int fat_chdir(void);
 unsigned long fat_size(void);
