@@ -35,7 +35,9 @@
 void sdcard_init(void);
 int sdcard_open(void);
 int sdcard_fetch(unsigned long blk_addr);
+int sdcard_fetch_sec(unsigned long sec_addr);
 int sdcard_store(unsigned long blk_addr);
+int sdcard_store_sec(unsigned long sec_addr);
 unsigned short sdcard_crc(void);
 int sdcard_flush(void);
 void *sdcard_buffer(void);

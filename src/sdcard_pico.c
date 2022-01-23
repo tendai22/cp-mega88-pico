@@ -63,7 +63,7 @@ static unsigned short
 crc;
 
 static unsigned long
-cur_blk;
+cur_sec;
 
 static unsigned char
 ccs;
@@ -234,7 +234,7 @@ sdcard_init
   gpio_init(P_CS); // CSn
   gpio_set_dir(P_CS, GPIO_OUT);
   gpio_put(P_CS, 1);
-  cur_blk = -1;
+  cur_sec = -1;
 }
 
 int
@@ -321,19 +321,18 @@ error:
 }
 
 int
-sdcard_fetch
-(unsigned long blk_addr)
+sdcard_fetch_sec
+(unsigned long sec_addr)
 {
   int c;
-  uint32_t dummy, crc;
-
-  if (cur_blk == blk_addr) return 0;
-  if (debug_flag) printf("sf: %lX (%ld) + %x\n", blk_addr >> 9, blk_addr >> 9, blk_addr % 512);
-  cur_blk = blk_addr;
-  if (0 != ccs) blk_addr >>= 9; // SDHC cards use block addresses
+  unsigned long dummy;
+  if (cur_sec == sec_addr) return 0;
+  if (debug_flag) printf("sfs: %lX (%ld) + %x\n", sec_addr, sec_addr, 0);
+  cur_sec = sec_addr;
+  if (0 == ccs) sec_addr <<= 9; // SDHC cards use block addresses
   // cmd17
   unsigned long rc =
-    sd_cmd(0x51, blk_addr >> 24, blk_addr >> 16, blk_addr >> 8, blk_addr, 0x00, &dummy);
+    sd_cmd(0x51, sec_addr >> 24, sec_addr >> 16, sec_addr >> 8, sec_addr, 0x00, &dummy);
 //  if (0xc1 == rc) {
 //    rc = sd_cmd(0x51, blk_addr >> 24, blk_addr >> 16, blk_addr >> 8, blk_addr, 0x00, &dummy);
 //  }
@@ -353,7 +352,7 @@ sdcard_fetch
   for (int i = 0; i < 512; i++) {
     buffer[i] = sd_in();
   }
-  if (debug_flag) {
+  if (debug_flag & 2) {
     for (int i = 0; i < 16; ++i) {
       char *top;
       if ((i % 16) == 0) {
@@ -379,18 +378,25 @@ sdcard_fetch
 }
 
 int
-sdcard_store
+sdcard_fetch
 (unsigned long blk_addr)
+{
+  return sdcard_fetch_sec(blk_addr >> 9);
+}
+
+int
+sdcard_store_sec
+(unsigned long sec_addr)
 {
   uint32_t dummy;
   int c;
   unsigned long rc;
 
-  printf("ss: %lX (%ld) + %d\n", blk_addr >> 9, blk_addr >> 9, blk_addr % 512);
-  if (0 != ccs) blk_addr >>= 9; // SDHC cards use block addresses
+  printf("ss: %lX (%ld)\n", sec_addr, sec_addr);
+  if (0 == ccs) sec_addr <<= 9; // SDHC cards use block addresses
   // cmd24
   uint32_t ints = save_and_disable_interrupts();
-  rc = sd_cmd(0x58, blk_addr >> 24, blk_addr >> 16, blk_addr >> 8, blk_addr, 0x00, &dummy);
+  rc = sd_cmd(0x58, sec_addr >> 24, sec_addr >> 16, sec_addr >> 8, sec_addr, 0x00, &dummy);
   if (0 != rc) {
     cs_deselect();
     return -1;
@@ -432,6 +438,13 @@ sdcard_store
   return 0;
 }
 
+int
+sdcard_store
+(unsigned long blk_addr)
+{
+  return sdcard_store_sec(blk_addr >> 9);
+}
+
 unsigned short
 sdcard_crc
 (void)
@@ -443,7 +456,7 @@ int
 sdcard_flush
 (void)
 {
-  return sdcard_store(cur_blk);
+  return sdcard_store_sec(cur_sec);
 }
 
 void *

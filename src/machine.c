@@ -500,7 +500,7 @@ prompt
     con_puthex(addr);
     con_putsln(">");
 # endif // !defined(MSG_MIN)
-    char rc = sdcard_store(addr << 9);
+    char rc = sdcard_store_sec(addr);
     if (rc >= 0) con_putsln(" ok");
     else {
       con_puts(" error(");
