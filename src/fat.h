@@ -42,6 +42,9 @@ unsigned long fat_size(void);
 int fat_open(void);
 int fat_seek(unsigned long pos);
 int fat_read(void);
+#if defined(USE_EXFAT)
+char fat_gsflag(void);
+#endif //defined(USE_EXFAT)
 #if defined(CHK_FAT)
 void fat_chk(void);
 #endif // defined(CHK_FAT)

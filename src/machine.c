@@ -276,13 +276,15 @@ mount
   for (;;) {
     if (fat_next() < 0) break;
     char attr = fat_attr();
-    printf("attr: %02X\n", attr);
+    //printf("attr: %02X\n", attr);
     if (0 != (0x10 & attr)) continue; // ignore if it it a directory
     fat_name(buf, sizeof buf);
     if (0 == buf[0]) return;
     if (0 != strdcmp(name, buf, 0)) continue;
     // found an entry
     fat_open();
+    con_puts(" ");
+    con_puts(buf);
     con_putsln(" ok");
     sd_fat = 1;
     eeprom_write(16, 0);
@@ -515,6 +517,9 @@ prompt
     for (;;) {
       if (fat_next() < 0) break;
       char attr = fat_attr();
+# if defined(USE_EXFAT)
+      char gsflag = fat_gsflag();
+# endif //defined(USE_EXFAT)
       fat_name(name, sizeof name);
       con_putchar(' ');
       con_putchar((0 != (0x10 & attr))? 'd': '-');
@@ -522,6 +527,9 @@ prompt
       con_putchar((0 == (0x04 & attr))? 'r': '-');
       con_putchar((0 == (0x01 & attr))? 'w': '-');
       con_putchar((0 != (0x10 & attr))? 'x': '-');
+#  if defined(USE_EXFAT)
+      con_putchar((0 != (0x02 & gsflag))? 'N': 'F');
+#  endif // defined(USE_EXFAT)
 # endif // !defined(MSG_MIN)
       con_putchar(' ');
       con_puts(name);

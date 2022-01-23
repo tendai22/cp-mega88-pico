@@ -41,6 +41,7 @@ target_compile_options(cpmega88
 #        PUBLIC -DCHK_SDC
         PUBLIC -DCHK_FAT
         PUBLIC -DUSE_EXFAT
+        PUBLIC -DSDCARD_DEBUG
 #        PUBLIC -DUSE_UART
         )
 
