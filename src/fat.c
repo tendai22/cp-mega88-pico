@@ -108,7 +108,7 @@ static unsigned long last_cluster = 0xffff;
 static unsigned long last_offset = 0;
 static unsigned char fs_desc = 0;
 
-static int fat_debug = 7;//7;
+static int fat_debug = 1;//7;
 
 static int do_fat_next(void);
 
@@ -150,7 +150,7 @@ fetch_cluster
         //printf("[sec:%ld]", sec);
         if (sdcard_fetch_sec(sec) < 0) return -1;
         cluster = read4((cluster << 2) % 512);
-        if ((cluster < 2) || (0xfffffff7 <= cluster)) return -2;
+        if ((cluster < 2) || (0x0ffffff7 <= cluster)) return -2;
       } else if (FS_FAT12 == fs_desc) {
         unsigned int off = ((cluster) >> 1) * 3 + (cluster & 1);
         sec = fat_first_sect + reserved_sectors + off / 512; 
@@ -169,7 +169,7 @@ fetch_cluster
         }
         if ((cluster < 2) || (0xff7 <= cluster)) return -2;
       }
-      if (fat_debug) printf("[%03X]", cluster);
+      if (fat_debug) printf("[%03lX]", cluster);
       offset -= (sectors_per_cluster << 9);
     }
     unsigned long cluster_sect = top_of_cluster + (cluster - offset_cluster) * sectors_per_cluster;
