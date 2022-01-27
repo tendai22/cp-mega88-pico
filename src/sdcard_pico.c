@@ -397,7 +397,7 @@ sdcard_store_sec
   printf("ss: %lX (%ld)\n", sec_addr, sec_addr);
   if (0 == ccs) sec_addr <<= 9; // SDHC cards use block addresses
   // cmd24
-  uint32_t ints = save_and_disable_interrupts();
+  //uint32_t ints = save_and_disable_interrupts();
   rc = sd_cmd(0x58, sec_addr >> 24, sec_addr >> 16, sec_addr >> 8, sec_addr, 0x00, &dummy);
   if (0 != rc) {
     cs_deselect();
@@ -410,25 +410,25 @@ sdcard_store_sec
   sd_out(0xff); // CRC dummy 1/2
   sd_out(0xff); // CRC dummy 2/2
   // read data response
-  if ((c = sd_response_in(10)) < 0) {   // 10 * 100us, or 1ms
-    restore_interrupts(ints);
+  if ((c = sd_response_in(10000)) < 0) {   // 10 * 100us, or 1ms
+    //restore_interrupts(ints);
     cs_deselect();
+    printf("DR: response timeout\n");
     return -3;
   }
   // skip busy "0" bits on DO
   if (sd_wait_resp(0, 500) < 0) {   // 500 * 100us, or 50ms
-    restore_interrupts(ints);
+    //restore_interrupts(ints);
     cs_deselect();
     printf("DR: timeout\n");
     return -3;
   }
 #if defined(SDCARD_DEBUG)
   wr_time = measured_time;
-  if (debug_flag) printf("wr_time: %ld usec\n", wr_time);
 #endif //defined(SDCARD_DEBUG)
   int d = c & 0x1f;
   if (d != 0x05) {
-    restore_interrupts(ints);
+    //restore_interrupts(ints);
     cs_deselect();
     printf("DR: bad Data Response %02X\n", (c & 0x1f));
     return -3;
@@ -436,7 +436,10 @@ sdcard_store_sec
   // successfully written
   //gpio_clr_mask(1<<P_CK);
   cs_deselect();
-  restore_interrupts(ints);
+  //restore_interrupts(ints);
+#if defined(SDCARD_DEBUG)
+  if (debug_flag) printf("wr_time: %ld usec\n", wr_time);
+#endif //defined(SDCARD_DEBUG)
   return 0;
 }
 
