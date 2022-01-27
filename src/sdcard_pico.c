@@ -69,7 +69,7 @@ static unsigned char
 ccs;
 
 static int
-debug_flag = 1;
+debug_flag = 0;
 
 #if defined (SDCARD_DEBUG)
 static long
@@ -345,13 +345,12 @@ sdcard_fetch_sec
     cs_deselect();
     return -2;
   }
-#if defined(SDCARD_DEBUG)
-  rd_time = measured_time;
-  if (debug_flag) printf("rd_time: %ld usec\n", rd_time);
-#endif //defined(SDCARD_DEBUG)
   for (int i = 0; i < 512; i++) {
     buffer[i] = sd_in();
   }
+#if defined(SDCARD_DEBUG)
+  rd_time = measured_time;
+#endif //defined(SDCARD_DEBUG)
   if (debug_flag & 2) {
     for (int i = 0; i < 16; ++i) {
       char *top;
@@ -374,6 +373,9 @@ sdcard_fetch_sec
   // XXX: rc check
   //gpio_clr_mask(1<<P_CK);
   cs_deselect();
+#if defined(SDCARD_DEBUG)
+  if (debug_flag) printf("rd_time: %ld usec\n", rd_time);
+#endif //defined(SDCARD_DEBUG)
   return 0;
 }
 

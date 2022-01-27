@@ -108,7 +108,7 @@ static unsigned long last_cluster = 0xffff;
 static unsigned long last_offset = 0;
 static unsigned char fs_desc = 0;
 
-static int fat_debug = 1;//7;
+static int fat_debug = 0;//7;
 
 static int do_fat_next(void);
 
@@ -130,14 +130,26 @@ static int
 fetch_cluster
 (unsigned long cluster, unsigned long offset)
 {
+  unsigned long cluster_sect;
+  unsigned long sector;
   if (fat_debug) printf("fc: %ld (%0X), %ld\n", cluster, cluster, offset);
   if ((cluster == last_cluster) &&
       ((offset & 0xfffffe00) == (last_offset & 0xfffffe00))) return 0;
   last_cluster = cluster;
   last_offset = offset;
-  unsigned long sector;
   if (0 == cluster) sector = top_of_dir + (offset >> 9);
+#if defined(USE_EXFAT)
+  else if (FS_EXFAT == fs_desc && (file_gsflag & 2)) {
+    // NoFatChain mode
+    cluster_sect = top_of_cluster + (cluster - offset_cluster) * sectors_per_cluster;
+    // cluster_sect ... top_of_file sector
+    sector = cluster_sect + (offset >> 9);
+    if (fat_debug) printf("nfc: sector = %ld\n", sector);
+    // falling down the last line of 'sdcard_fetch_sec'
+  }
+#endif // defined(USE_EXFAT)
   else {
+    // FatChain mode, go down to use fetch_cluster.
     unsigned long sec;
     while (offset > (sectors_per_cluster << 9)) {
       if (FS_FAT16 == fs_desc) {
@@ -172,7 +184,7 @@ fetch_cluster
       if (fat_debug) printf("[%03lX]", cluster);
       offset -= (sectors_per_cluster << 9);
     }
-    unsigned long cluster_sect = top_of_cluster + (cluster - offset_cluster) * sectors_per_cluster;
+    cluster_sect = top_of_cluster + (cluster - offset_cluster) * sectors_per_cluster;
     if (fat_debug) printf(" cluster_sect: %ld\n", cluster_sect);
     sector = cluster_sect + (offset >> 9);
   }
@@ -644,20 +656,6 @@ fat_read
 (void)
 {
     // use file_gsflag, file_cluster, file_offset.
-#if defined(USE_EXFAT)
-  if (FS_EXFAT == fs_desc) {
-    if (file_gsflag & 2) {
-      // NoFatChain mode
-      unsigned long cluster_sect;
-      cluster_sect = top_of_cluster + (file_cluster - offset_cluster) * sectors_per_cluster;
-      // cluster_sect ... top_of_file sector
-      unsigned long sector = cluster_sect + (file_offset >> 9);
-      if (fat_debug) printf("fr: sector = %ld\n", sector);
-      return sdcard_fetch(sector << 9);
-    }
-    // FatChain mode, go down to use fetch_cluster.
-  }
-#endif
   return fetch_cluster(file_cluster, file_offset);
 }
 

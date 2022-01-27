@@ -515,7 +515,8 @@ prompt
     char name[32];
     name[0] = '\0';
     for (;;) {
-      if (fat_next() < 0) break;
+      int r;
+      if ((r = fat_next()) < 0) { printf("%d\n", r); break; }
       char attr = fat_attr();
 # if defined(USE_EXFAT)
       char gsflag = fat_gsflag();
