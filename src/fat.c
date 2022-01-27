@@ -80,7 +80,7 @@ static unsigned long alloc_cluster;
 static unsigned long top_of_cluster;
 static unsigned long number_of_clusters;
 static unsigned long offset_cluster = 2;
-static unsigned long fat_first_cluster;
+static unsigned long rootdir_cluster;
 
 static unsigned long file_cluster;
 static unsigned long file_offset;
@@ -192,14 +192,13 @@ fat_init_exfat
     printf("exFAT partition_offset too large.\n");
     return -1;
   }
-  printf("partition_offset:  %ld\n", partition_offset);
-  unsigned long volume_length = read4(72);
+  //printf("partition_offset:  %ld\n", partition_offset);
+  unsigned long totsec = read4(72);
   temp = read4(76);
   if (0 != temp) {
-    printf("exFAT volume_length too big.\n");
+    printf("exFAT total_sectors too big.\n");
     return -2;
   }
-  printf("volume_length:   %ld\n", volume_length);
   unsigned long cluster_count = read4(92);
   unsigned long fat_offset = read4(80);
   reserved_sectors = fat_offset;    // reserved_sectors is top_of_fat, or fat_offset;
@@ -213,8 +212,19 @@ fat_init_exfat
   bytes_per_sector = (1 << sdcard_read(108));
   sectors_per_cluster = (1 << sdcard_read(109));
   //
-  fat_first_cluster = read4(96);
+  rootdir_cluster = read4(96);
 
+  printf("total_sectors:  %ld (%lX)\n", totsec, totsec);
+  printf("sec/cluster:    %ld\n", sectors_per_cluster);
+  printf("# of clusters:  %ld (%lX)\n", cluster_count, cluster_count);
+  printf("fat_first_sec:  %ld\n", partition_offset);
+  printf("reserved_sectors: %ld\n", fat_offset);
+  printf("fat_sectors:    %ld\n", fat_size * number_of_fats);
+  printf("top_of_dir:     %ld\n", fat_offset + fat_size * number_of_fats);
+  printf("rootdir_sectors: %ld\n", 0);
+  printf("top_of_cluster: %ld (%lX)\n", cluster_heap_offset, cluster_heap_offset);
+
+#if 0
   printf("BytePerSec: %d\n", bytes_per_sector);
   printf("SecPerClus: %d\n", sectors_per_cluster);
   printf("FATSz:      %d\n\n", fat_size);
@@ -222,10 +232,11 @@ fat_init_exfat
   printf("fat_end:    %d\n", fat_offset + number_of_fats * fat_size);
   printf("top_of_cluster: %d\n\n", top_of_cluster);
   printf("allocation table size: %d\n", (cluster_count + 7)>>3);
+#endif
 
   // scan root directory
-  printf("fat_first_cluster: %ld\n", fat_first_cluster);
-  dir_cluster = fat_first_cluster;
+  printf("\nrootdir_cluster: %ld\n", rootdir_cluster);
+  dir_cluster = rootdir_cluster;
   dir_entries = 1000;   // not the right way, but an actial way
   fat_rewind();
   long off;
@@ -336,7 +347,7 @@ fat_init
   fat_start_sector = reserved_sectors;
 
   fat_sectors = fat_size * number_of_fats;
-  
+#if 0
   printf("11 BytePerSec: %d\n", bytes_per_sector);
   printf("13 SecPerClus: %d\n", sectors_per_cluster);
   printf("14 RsvdSecCnt: %d\n", reserved_sectors);
@@ -346,17 +357,17 @@ fat_init
 
   printf("dir_entries: %04X (%d)\n", dir_entries, dir_entries);
   printf("dir_size: %04X (%d)\n", dir_size, dir_size);
-
+#endif
   top_of_dir = fat_first_sect + reserved_sectors + fat_sectors;
   // totsec: total number of sectors in the drive file
   unsigned long totsec = read2(OFF_TOTSEC16);
   if (0 == totsec) {
     totsec = read4(OFF_TOTSEC32);
   }
-  printf("totsec: %ld\n", totsec);
+  //printf("totsec: %ld\n", totsec);
   unsigned long number_of_clusters = totsec - top_of_cluster;
   number_of_clusters /= sectors_per_cluster;
-  printf("number_of_clusters: %ld\n", number_of_clusters);
+  //printf("number_of_clusters: %ld\n", number_of_clusters);
   if (number_of_clusters <= 4085) {
     fs_desc = FS_FAT12;
     printf("FAT12\n");
@@ -366,7 +377,7 @@ fat_init
   } else if (65526 <= number_of_clusters) {
     fs_desc = FS_FAT32;
     printf("FAT32\n");
-    fat_first_cluster = read4(44);   // 44 RootClus
+    rootdir_cluster = read4(44);   // 44 RootClus
     dir_entries = 65536;
     dir_size = (dir_entries * 32 + bytes_per_sector - 1) / bytes_per_sector;
   } else {
@@ -378,12 +389,19 @@ fat_init
     rootdir_sectors = 0;   // In FAT32 and exFAT, we use a cluster chain as root directory entries.
 
   top_of_cluster = fat_first_sect + reserved_sectors + fat_sectors + rootdir_sectors;
-  printf("\nfat_first_sect: %ld\n", fat_first_sect);
-  printf("reserved_sectors: %d\n", reserved_sectors);
-  printf("fat_sectors: %ld\n", fat_sectors);
-  printf("top_of_dir: %ld\n", top_of_dir);
+
+  printf("total_sectors:  %ld (%X)\n", totsec, totsec);
+  printf("sec/cluster:    %ld\n", sectors_per_cluster);
+  printf("# of clusters:  %ld (%X)\n", number_of_clusters, number_of_clusters);
+  printf("fat_first_sect: %ld\n", fat_first_sect);
+  printf("reserved_sectors: %ld\n", reserved_sectors);
+  printf("fat_sectors:    %ld\n", fat_sectors);
+  printf("top_of_dir:     %ld\n", top_of_dir);
   printf("rootdir_sectors: %ld\n", rootdir_sectors);
-  printf("top_of_cluster: %lX (%ld)\n", top_of_cluster, top_of_cluster);
+  printf("top_of_cluster: %ld (%lX)\n", top_of_cluster, top_of_cluster);
+  if (FS_FAT32 == fs_desc)
+    printf("rootdir_cluster: %ld\n", rootdir_cluster);
+
 
   if (512 != bytes_per_sector) {
     printf("bad bytes_per_sector\n");
@@ -391,8 +409,7 @@ fat_init
   }
   dir_cluster = 0;
   if (FS_FAT32 == fs_desc) {
-    dir_cluster = fat_first_cluster;
-    printf("FAT32: dir_cluster: %ld\n", dir_cluster);
+    dir_cluster = rootdir_cluster;
   }
   fat_rewind();
   return fs_desc;
