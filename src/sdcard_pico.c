@@ -394,7 +394,7 @@ sdcard_store_sec
   int c;
   unsigned long rc;
 
-  printf("ss: %lX (%ld)\n", sec_addr, sec_addr);
+  if (debug_flag) printf("ss: %lX (%ld)\n", sec_addr, sec_addr);
   if (0 == ccs) sec_addr <<= 9; // SDHC cards use block addresses
   // cmd24
   //uint32_t ints = save_and_disable_interrupts();
