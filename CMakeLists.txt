@@ -1,4 +1,19 @@
+cmake_minimum_required(VERSION 3.16)
+#set(PICO_SDK_PATH "/home/kuma/pico/pico-sdk")
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include(pico_sdk_import.cmake)
+
+project(cpmega88 C CXX ASM)
+set(CMAKE_C_STANDART 11)
+set(CMAKE_CXX_STANDART 17)
+
+pico_sdk_init()
+
+include_directories(${PICO_SDK_PATH})
+
 add_executable(cpmega88
+        ./src/platform_pico.c
+        ./src/machine.c
         ./src/platform_pico.c
         ./src/machine.c
         ./src/cpu_8080.c
@@ -40,4 +55,4 @@ pico_enable_stdio_uart(cpmega88 0)
 pico_add_extra_outputs(cpmega88)
 
 # add url via pico_set_program_url
-example_auto_set_url(cpmega88)
+#example_auto_set_url(cpmega88)

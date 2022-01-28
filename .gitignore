@@ -1,2 +1,17 @@
 *.o
 third_party
+CMakeCache.txt
+CMakeFiles/
+Makefile
+a.c
+a.out
+*.bin
+*.dis
+*.elf
+*.elf.map
+*.hex
+*.uf2
+disks/
+elf2uf2/
+generated/
+pico-sdk/
