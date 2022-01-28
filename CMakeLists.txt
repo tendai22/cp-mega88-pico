@@ -21,29 +21,23 @@ add_executable(cpmega88
         ./src/con_pico.c
         ./src/sram_pico.c
         ./src/sdcard_base.c
-#        ./src/sdcard_picoflash.c
-        ./src/sdcard_pico.c
-        ./src/fat.c
+        ./src/sdcard_picoflash.c
+#        ./src/fat.c
         ./src/eeprom_base.c
         ./src/eeprom_image.c
         ./src/eeprom_pico.c
         ./src/io_pico.c
         ./src/led_pico.c
-#        ./src/xmodem.c
-#        ./src/crc16.c
+        ./src/xmodem.c
+        ./src/crc16.c
         )
 
 target_compile_options(cpmega88
         PUBLIC -DMCU_PICO
         PUBLIC -DCPU_EMU_C
-#        PUBLIC -DUSE_FLASH
-#        PUBLIC -DUSE_XMODEM
-        PUBLIC -DSDCARD_CMD_DUMP
+        PUBLIC -DUSE_FLASH
+        PUBLIC -DUSE_XMODEM
         PUBLIC -DMON_MEM
-#        PUBLIC -DCHK_SDC
-        PUBLIC -DCHK_FAT
-        PUBLIC -DUSE_EXFAT
-        PUBLIC -DSDCARD_DEBUG
 #        PUBLIC -DUSE_UART
         )
 

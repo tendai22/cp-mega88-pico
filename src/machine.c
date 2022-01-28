@@ -106,9 +106,11 @@ void
 boot
 (void)
 {
+#if defined(USE_FAT)
   if (fs_desc == 0) {
     con_putsln("error: no boot, filesystem uninitialized");
   }
+#endif //defined(USE_FAT)
 #if defined(CPU_EMU_C)
   cpu_8080_reset(&work);
 #else // if defined(CPU_EMU_A)

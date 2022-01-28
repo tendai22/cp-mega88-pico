@@ -22,7 +22,7 @@ add_executable(cpmega88
         ./src/sram_pico.c
         ./src/sdcard_base.c
         ./src/sdcard_picoflash.c
-        ./src/fat.c
+#        ./src/fat.c
         ./src/eeprom_base.c
         ./src/eeprom_image.c
         ./src/eeprom_pico.c
