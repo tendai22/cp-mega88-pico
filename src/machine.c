@@ -31,9 +31,9 @@
 
 #include <stdio.h>
 #include "pico/stdlib.h"
-#if defined(USE_UART)
-#include "pico/stdio_uart.h"
-#endif //defined(USE_UART)
+//#if defined(USE_UART)
+//#include "pico/stdio_uart.h"
+//#endif //defined(USE_UART)
 
 #include "flash.h"
 
@@ -87,6 +87,8 @@ extern uint8_t _end;
 extern uint8_t __stack;
 #endif // defined(TEST)
 
+static int fs_desc = 0;
+
 void
 disk_read
 (unsigned long blk)
@@ -104,6 +106,9 @@ void
 boot
 (void)
 {
+  if (fs_desc == 0) {
+    con_putsln("error: no boot, filesystem uninitialized");
+  }
 #if defined(CPU_EMU_C)
   cpu_8080_reset(&work);
 #else // if defined(CPU_EMU_A)
@@ -229,11 +234,11 @@ strndcmp
   return 0;
 }
 
-int
+unsigned long
 getnum
 (char *s)
 {
-  int rc = 0;
+  long rc = 0;
   if (0 == strndcmp(s, "0x", 2, 0)) {
     s += 2;
     for (;;) {
@@ -263,17 +268,23 @@ void
 mount
 (char *name)
 {
+  char buf[32];
+  buf[0] = '\0';
   con_puts("A: ");
   con_puts(name);
   fat_rewind();
   for (;;) {
     if (fat_next() < 0) break;
-    char buf[8 + 1 + 3 + 1];
-    //char attr = fat_attr();
-    //if (0 != (0x10 & attr)) continue;
-    fat_name(buf);
+    char attr = fat_attr();
+    //printf("attr: %02X\n", attr);
+    if (0 != (0x10 & attr)) continue; // ignore if it it a directory
+    fat_name(buf, sizeof buf);
+    if (0 == buf[0]) return;
     if (0 != strdcmp(name, buf, 0)) continue;
+    // found an entry
     fat_open();
+    con_puts(" ");
+    con_puts(buf);
     con_putsln(" ok");
     sd_fat = 1;
     eeprom_write(16, 0);
@@ -409,12 +420,17 @@ prompt
       addr = n;
     }
     for (int i = 0; i < 256; ++i, ++addr) {
+      unsigned short top = addr;
       if (i % 16 == 0) {
         printf("%04X ", addr);
       }
       unsigned char c = sram_read(addr);
       printf("%02X ", c);
       if ((i % 16) == 15) {
+        for (int j = 0; j < 16; ++j) {
+          c = sram_read(top + j);
+          printf ("%c", (0x20 <= c && c <= 0x7f) ? c : '.');
+        }
         printf("\n");
       }
     }
@@ -484,7 +500,7 @@ prompt
     con_puthex(addr);
     con_putsln(">");
 # endif // !defined(MSG_MIN)
-    char rc = sdcard_store(addr << 9);
+    char rc = sdcard_store_sec(addr);
     if (rc >= 0) con_putsln(" ok");
     else {
       con_puts(" error(");
@@ -496,17 +512,25 @@ prompt
 #if defined(MON_FAT)
   } else if (0 == strdcmp("ls", cmd, 0)) {
     fat_rewind();
+    char name[32];
+    name[0] = '\0';
     for (;;) {
-      if (fat_next() < 0) break;
-      char name[8 + 1 + 3 + 1];
+      int r;
+      if ((r = fat_next()) < 0) { printf("%d\n", r); break; }
       char attr = fat_attr();
-      fat_name(name);
+# if defined(USE_EXFAT)
+      char gsflag = fat_gsflag();
+# endif //defined(USE_EXFAT)
+      fat_name(name, sizeof name);
       con_putchar(' ');
       con_putchar((0 != (0x10 & attr))? 'd': '-');
 # if !defined(MSG_MIN)
       con_putchar((0 == (0x04 & attr))? 'r': '-');
       con_putchar((0 == (0x01 & attr))? 'w': '-');
       con_putchar((0 != (0x10 & attr))? 'x': '-');
+#  if defined(USE_EXFAT)
+      con_putchar((0 != (0x02 & gsflag))? 'N': 'F');
+#  endif // defined(USE_EXFAT)
 # endif // !defined(MSG_MIN)
       con_putchar(' ');
       con_puts(name);
@@ -515,16 +539,20 @@ prompt
     return;
   } else if (0 == strdcmp("cd", cmd, ' ')) {
     if (NULL == arg) {
-      fat_init();
+      int rc = fat_init();
+      if (rc > 0) {
+        fs_desc = rc;
+      }
       return;
     }
     fat_rewind();
+    char name[32];
+    name[0] == '\0';
     for (;;) {
       if (fat_next() < 0) break;
-      char name[8 + 1 + 3 + 1];
       char attr = fat_attr();
       if (0 == (0x10 & attr)) continue;
-      fat_name(name);
+      fat_name(name, sizeof name);
       if (0 != strdcmp(arg, name, 0)) continue;
       fat_chdir();
       break;
@@ -608,6 +636,12 @@ prompt
     }
     return;
 # endif // defined(USE_FLASH)
+# if defined(CHK_FAT)
+  } else if (0 == strdcmp("tf", cmd, ' ')) {
+    // test fat
+    fat_chk();
+    return;
+# endif // defined(CHK_FAT)
 #endif // defined(MON_CON)
   }
  usage:
@@ -646,6 +680,9 @@ prompt
 #   if defined(EFI)
   con_putsln(" efi <on/off>     : EFI terminal mode");
 #   endif // defined(EFI)
+#   if defined(CHK_FAT)
+  con_putsln(" tf               : test fat (scan mounted fat file)");
+#   endif // defined(CHK_FAT)
 #  endif // defined(MON_CON)
 # else // !defined(MSG_MIN)
   con_puts("  CMD R;B;WP t;A t");
@@ -800,10 +837,10 @@ void
 sdc_chk
 (void)
 {
-  int block;
+  long block;
   for (block = 0; block < 128; ++block) {
-    unsigned short addr = block << 9;
-    sdcard_fetch(block);
+    unsigned long addr = block << 9;
+    sdcard_fetch(addr);
     int i;
     for (i = 0; i < 512; i++) sram_write(addr + i, sdcard_read(i));
     con_puts("sdc test phase 1: ");
@@ -813,8 +850,8 @@ sdc_chk
   con_putsln("");
   int err = 0;
   for (block = 0; block < 128; ++block) {
-    unsigned short addr = block << 9;
-    sdcard_fetch(block);
+    unsigned long addr = block << 9;
+    sdcard_fetch(addr);
     unsigned short i;
     for (i = 0; i < 512; i++) {
       if (sram_read(addr + i) != sdcard_read(i)) {
@@ -828,7 +865,6 @@ sdc_chk
         con_puthex(sdcard_read(i));
         con_putsln("");
         sram_write(addr + i, sdcard_read(i));
-        block--;
       }
     }
     con_puts("sdc test phase 2: ");
@@ -1049,6 +1085,7 @@ machine_boot
     con_puts("SDC: err(");
     con_puthex(-rc);
     con_putsln(")");
+    goto skip_fat;
   }
 #endif // !defined(MSG_MIN);
 #if defined(USE_FAT)
@@ -1060,6 +1097,7 @@ machine_boot
     else con_puthex(rc);
     con_putsln("");
     sd_fat = 1;
+    fs_desc = rc;
   } else {
 #if !defined(MSG_MIN)
     con_puts("FAT: ");
@@ -1069,6 +1107,7 @@ machine_boot
 #endif // !defined(MSG_MIN);
   }
 #endif // defined(USE_FAT)
+skip_fat:
 #if defined(CPU_EMU_C)
   work.load_8 = &sram_read;
   work.store_8 = &sram_write;
