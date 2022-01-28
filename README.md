@@ -6,6 +6,9 @@ The original cp-mega88 locates https://github.com/toyoshim/cp-mega88.  It is an 
 
 ## とりあえずのビルド方法(Japanese)
 
+> 注意: 2022-1-29に内蔵flash版とSDcard版をmainブランチにマージしました。
+> tag `v0.91`を打ったので、これをチェックアウトしてビルドするだけでよくなります。
+
 * pico-sdkをインストールしてください。私はWSL派で、ビルドはWSL(Ubuntu20)で行い、ビルド結果のuf2ファイルをWindowsデスクトップにコピーし、Picoへの書き込みはWindows環境のUSBドライブにドラッグアンドドロップでやっています。USBシリアルをwsl側でアクセスできるようにする自信がない、一方で、WLS環境からファイルをWindows環境にコピーは簡単にできるので。
 
 * WSLのインストール: これは[このあたり](https://docs.microsoft.com/ja-jp/windows/wsl/install)でしょうか。
@@ -50,11 +53,35 @@ $ cd somewhere
 $ git clone https://github.com/tendai22/cp-mega88-pico.git
 $ cd cp-mega88-pico
 ```
-* いまのところ、developブランチでしか動かないので、developブランチをチェックアウトする。
+* タグ `v0.91`をcheckoutする。以下、`detached HEAD`がどうのこうの行ってくるが、
+気にしないで先に進んでよい。
 ```
-$ git checkout develop
+$ git checkout v0.91
+M       README.md
+Note: switching to 'v0.91'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by switching back to a branch.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -c with the switch command. Example:
+
+  git switch -c <new-branch-name>
+
+Or undo this operation with:
+
+  git switch -
+
+Turn off this advice by setting config variable advice.detachedHead to false
+
+HEAD is now at e5fae38 Merge branch 'main' of github.com:tendai22/cp-mega88-pico into main
 ```
 * ビルドする。`cmake`コマンドは引数にディレクトリを渡すことに注意。ここではカレントディレクトリを指定する。
+
+> SDcard版もビルドできる。`CMakeLists.sdcard`を`CMakeLists.txt`にコピーして下記の手順でビルドすると、
+> SDcard版のビルドができる。
+
 ```
 $ cmake .
 $ make
