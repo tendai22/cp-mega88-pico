@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-#set(PICO_SDK_PATH "/home/kuma/pico/pico-sdk")
+set(PICO_SDK_PATH "/home/kuma/pico/pico-sdk")
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include(pico_sdk_import.cmake)
 
@@ -12,8 +12,6 @@ pico_sdk_init()
 include_directories(${PICO_SDK_PATH})
 
 add_executable(cpmega88
-        ./src/platform_pico.c
-        ./src/machine.c
         ./src/platform_pico.c
         ./src/machine.c
         ./src/cpu_8080.c

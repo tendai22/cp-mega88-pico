@@ -38,7 +38,8 @@ extern void select_drive(int drive);
 extern void flash_disk_write(unsigned long pos, const unsigned char *src, int len);
 extern void end_flash_write(void);
 extern char flash_read(unsigned long pos);
-extern long xmodem_flash(void);
+extern long xmodem_receive_flash(unsigned short *crc);
+extern long xmodem_send_flash(unsigned short *crc);
 
 #endif // defined(USE_FLASH)
 #endif // !defined(__sdcard_h__)

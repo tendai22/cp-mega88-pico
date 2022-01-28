@@ -31,7 +31,9 @@
 
 #include <stdio.h>
 #include "pico/stdlib.h"
+#if defined(USE_UART)
 #include "pico/stdio_uart.h"
+#endif //defined(USE_UART)
 
 #include "flash.h"
 
@@ -572,13 +574,22 @@ prompt
 #  endif // defined(MSG_MIN)
     return;
 # endif // defined(EFI)
-# if defined(USE_FLASH)
+# if defined(USE_XMODEM)
   } else if (0 == strdcmp("xr", cmd, ' ')) {
     unsigned long len;
-    len = xmodem_flash();
+    unsigned short crc = 0;
+    len = xmodem_receive_flash(&crc);
     end_flash_write();
-    printf("\nwrite %ld (%lX) bytes\n", len, len);
+    printf("\nwrite %ld (%lX) bytes, crc = %04X\n", len, len, crc);
     return;
+  } else if (0 == strdcmp("xs", cmd, ' ')) {
+    unsigned long len;
+    unsigned short crc = 0;
+    len = xmodem_send_flash(&crc);
+    printf("send %ld (%lX) bytes, crc = %04X\n", len, len, crc);
+    return;
+# endif // defined(USE_XMODEM)
+# if defined(USE_FLASH)
   } else if (0 == strdcmp("fd", cmd, ' ')) {
     // flash dump
     if (NULL != arg) {
@@ -627,8 +638,8 @@ prompt
   con_putsln(" m <filename>     : mount image disk");
 #  endif // defined(MON_FAT)
 #  if defined(USE_XMODEM)
-  con_putsln(" xr               : xmodem read");
-  con_putsln(" fd <addr>        : flash dump");
+  con_putsln(" xr               : xmodem receive");
+  con_putsln(" xs               : xmodem send");
 #  endif // defined(USE_XMODEM)
 #  if defined(MON_CON)
   con_putsln(" vt <on/off>      : vt100 compatible mode");

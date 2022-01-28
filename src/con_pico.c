@@ -33,15 +33,18 @@
 
 #include <stdio.h>
 #include "pico/stdlib.h"
-#include "pico/stdio_uart.h"
 
+#if defined(LIB_PICO_STDIO_UART)
+//
+// USE_UART macros
+//
 #define UART_ID uart_default
 #define BAUD_RATE 115200
-
 // We are using pins 0 and 1, but see the GPIO function select table in the
 // datasheet for information on which other pins can be used.
 #define UART_TX_PIN 16
 #define UART_RX_PIN 17
+#endif // defined(LIB_PICO_STDIO_UART)
 
 static void
 sleep
@@ -54,35 +57,50 @@ void
 con_init
 (void)
 {
+#if defined(LIB_PICO_STDIO_UART)
+  // stdio_uart mode
   stdio_uart_init_full(UART_ID, BAUD_RATE, UART_TX_PIN, UART_RX_PIN);
-  while(uart_is_readable(UART_ID))
-    uart_getc(UART_ID);
+#elif defined(LIB_PICO_STDIO_USB)
+  // for stdio_usb mode
+  stdio_init_all();
+  sleep_ms(1000);
+#endif //defined(USE_UART)
+  while(getchar_timeout_us(100) != PICO_ERROR_TIMEOUT)
+    ;
 }
 
 void
 con_putchar
 (unsigned char c)
 {
-  while(!uart_is_writable(UART_ID))
-    sleep();
-  uart_putc(UART_ID, c);
+  putchar_raw(c);
 }
+
+// for peeking where no peek functions we have.
+static int unget_char = -1;
 
 int
 con_getchar
 (void)
 {
-  if (uart_is_readable(UART_ID)) {
-    return uart_getc(UART_ID);
+  int c;
+  if ((c = unget_char) != -1) {
+    unget_char = -1;
+    return c;
   }
-  sleep();
-  return uart_is_readable(UART_ID) ? uart_getc(UART_ID) : -1;
+  return ((c = getchar_timeout_us(10)) != PICO_ERROR_TIMEOUT) ? c : -1;
 }
 
 int
 con_peek
 (void)
 {
-  sleep();
-  return uart_is_readable(UART_ID) ? 1 : 0;
+  int c;
+  if (unget_char != -1)
+    return 1;
+  if ((c = getchar_timeout_us(10)) != PICO_ERROR_TIMEOUT) {
+    unget_char = c;
+    return 1;
+  }
+  return 0;
 }

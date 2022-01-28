@@ -34,12 +34,15 @@
 #include <stdio.h>
 #include <string.h>
 #include "pico/stdlib.h"
+#include "pico/stdio.h"
+#include "hardware/irq.h"
 #include "hardware/clocks.h"
-//#include "hardware/spi.h"
 #include "hardware/flash.h"
+#include "hardware/sync.h"
 
 #include "flash.h"
 #include "xmodem.h"
+#include "crc16.h"
 
 //
 // Use Pico embedded QSPI flash device as a disk drive
@@ -108,7 +111,6 @@
 #define DISK_AREA_SIZE (1024 * 256)
 #define DRIVEA_BASE (PICO_FLASH_SIZE_BYTES - DISK_AREA_SIZE)
 
-
 // address for erase/program operations, base is zero
 // for read operation(memcpy), base is XIP_BASE.
 #define DRIVEA_BASE_ADDR (XIP_BASE + DRIVEA_BASE)
@@ -120,7 +122,7 @@ static unsigned long
 cur_blk;
 
 static int
-dirty_flag = 0;
+dirty_flag = 0;   // dirty if data in buffer[].
 
 static long
 cur_sector = -1;  // sector number, specifying the content of 'buffer[]'
@@ -132,7 +134,7 @@ static int
 cur_drive = -1;   // drive number
 
 static int
-debug_out = 1;
+debug_out = 0;
 
 void
 sdcard_init
@@ -143,7 +145,6 @@ sdcard_init
   cur_drive = -1;
   cur_sector = -1;
   dirty_flag = 0;
-  debug_out = 0;
 }
 
 int
@@ -164,6 +165,18 @@ sdcard_buffer_dirty
 }
 
 static void
+flash_erase_and_program_sector
+(uint32_t addr, unsigned char *src)
+{
+  uint32_t ints = 0;
+  // disable all of the irqs and perform erase and program
+  ints = save_and_disable_interrupts();
+  flash_range_erase(addr, FLASH_SECTOR_SIZE);
+  flash_range_program(addr, src, FLASH_SECTOR_SIZE);
+  restore_interrupts(ints);
+}
+
+static void
 flush_buffer_if_necessary
 (void)
 {
@@ -176,8 +189,7 @@ flush_buffer_if_necessary
     } else {
       // write it out
       if (debug_out) printf("f: %08X\n", cur_sector);
-      flash_range_erase(DRIVEA_BASE + (cur_sector << 12), FLASH_SECTOR_SIZE);
-      flash_range_program(DRIVEA_BASE + (cur_sector << 12), buffer, FLASH_SECTOR_SIZE);
+      flash_erase_and_program_sector(DRIVEA_BASE + (cur_sector << 12), buffer);
       dirty_flag = 0;
     }
   }
@@ -215,13 +227,13 @@ flash_disk_write
 (unsigned long pos, const unsigned char *src, int len)
 {
   int n;
+//  static uint32_t mask;
 
   while (len > 0) {
     unsigned long new_sector = pos / FLASH_SECTOR_SIZE;
     int new_offset = pos % FLASH_SECTOR_SIZE;
     if (dirty_flag && cur_sector >= 0 && cur_sector != new_sector) {
-      flash_range_erase(DRIVEA_BASE + (cur_sector << 12), FLASH_SECTOR_SIZE);
-      flash_range_program(DRIVEA_BASE + (cur_sector << 12), buffer, FLASH_SECTOR_SIZE);
+      flash_erase_and_program_sector(DRIVEA_BASE + (cur_sector << 12), buffer);
       dirty_flag = 0;
     }
     if (cur_sector != new_sector) {
@@ -244,8 +256,7 @@ end_flash_write
 (void)
 {
   if (dirty_flag && cur_sector >= 0) {
-      flash_range_erase(DRIVEA_BASE + (cur_sector << 12), FLASH_SECTOR_SIZE);
-      flash_range_program(DRIVEA_BASE + (cur_sector << 12), buffer, FLASH_SECTOR_SIZE);
+      flash_erase_and_program_sector(DRIVEA_BASE + (cur_sector << 12), buffer);
       dirty_flag = 0;
   }
 }
@@ -258,10 +269,20 @@ flash_read
 }
 
 long
-xmodem_flash
-(void)
+xmodem_receive_flash
+(unsigned short *crc)
 {
   long len = xmodemReceive(0, DISK_SIZE);
+  *crc = crc16_ccitt((unsigned char *)XIP_BASE + DRIVEA_BASE, DISK_SIZE);
+  return len;
+}
+
+long
+xmodem_send_flash
+(unsigned short *crc)
+{
+  long len = xmodemTransmit((unsigned char *)XIP_BASE + DRIVEA_BASE, DISK_SIZE);
+  *crc = crc16_ccitt((unsigned char *)XIP_BASE + DRIVEA_BASE, DISK_SIZE);
   return len;
 }
 #endif //defined(USE_FLASH)
