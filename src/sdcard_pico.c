@@ -200,7 +200,7 @@ sdcard_open
   // cmd0 - GO_IDLE_STATE (response R1)
   rc = sd_cmd(0x40, 0x00, 0x00, 0x00, 0x00, 0x95, &dummy);
   cs_deselect();
-  sleep_us(10);
+  //sleep_us(10);
   if (rc < 0 ||1 != rc) {
     return -1;
   }
@@ -242,7 +242,7 @@ sdcard_open
     rc = sd_cmd(0x69, arg, 0x00, 0x00, 0x00, 0x77/*0x77*/, &dummy);
     cs_deselect();
     sleep_ms(100);
-    if (count++ >= 50) goto error;
+    if (count++ >= 10) goto error;
     if (rc == 0x05) {
       // ACMD41 not supported, try CMD1
       break;
@@ -266,8 +266,9 @@ sdcard_open
     while(1) {
       rc = sd_cmd(0x41, 0x00, 0x00, 0x00, 0x00, 0x00, &dummy);
       cs_deselect();
-      if (count++ >= 50) goto error;
+      if (count++ >= 10) goto error;
       if (rc == 0) break;
+      sleep_ms(100);
     }
   }
 
