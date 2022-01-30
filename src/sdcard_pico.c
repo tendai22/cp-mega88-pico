@@ -185,6 +185,16 @@ sd_cmd
   return c;  // R1
 }
 
+void
+reset_80clks
+(void)
+{
+  for (int i = 0; i < 10; ++i) {
+    sd_out(0xff);
+  }
+  reset_clk();
+}
+
 int
 sdcard_open
 (void)
@@ -193,9 +203,8 @@ sdcard_open
 
   //gpio_put(P_DI, 1);
   // reset with 80 clocks
-  for (int i = 0; i < 10; ++i) {
-    sd_out(0xff);
-  }
+  reset_80clks();
+
   unsigned long rc;
   // cmd0 - GO_IDLE_STATE (response R1)
   rc = sd_cmd(0x40, 0x00, 0x00, 0x00, 0x00, 0x95, &dummy);
@@ -217,6 +226,8 @@ sdcard_open
     type = 1;   // SD1
     printf("SD Ver.1\n");
     // reset to IDLE State again
+    reset_80clks();
+
     rc = sd_cmd(0x40, 0x00, 0x00, 0x00, 0x00, 0x95, &dummy);
     cs_deselect();
     if (rc < 0 || 1 != rc) {
@@ -251,10 +262,7 @@ sdcard_open
   //ccs = (rc & 0x40000000) ? 1 : 0; // ccs bit high means SDHC card
   if (rc == 0x05) {
     cs_deselect();
-    for (int i = 0; i < 10; ++i) {
-      sd_out(0xff);
-    }
-
+    reset_80clks();
     // CMD1
     rc = sd_cmd(0x40, 0x00, 0x00, 0x00, 0x00, 0x95, &dummy);
     cs_deselect();
