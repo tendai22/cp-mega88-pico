@@ -154,6 +154,7 @@ sd_cmd
   unsigned long rc;
   
   if (cmd_flag) printf("[%02X %02X %02X %02X %02X (%02X)]->", cmd, arg0, arg1, arg2, arg3, crc);
+  sd_out(0xff);
   cs_select();
   sd_out(cmd);
   sd_out(arg0);
