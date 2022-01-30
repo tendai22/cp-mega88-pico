@@ -39,8 +39,14 @@ void do_spi_init(void);
 void reset_clk(void);
 unsigned long sd_in(void);
 void sd_out(const unsigned char c);
-int sd_wait_resp(unsigned char value, int counter, int bitnum);
+int sd_wait_resp(unsigned char value, long counter, int bitnum);
 void cs_select();
 void cs_deselect();
 long int measured_time;
+
+//
+// 1ms counter value for sp_wait_resp 2nd argument
+// clock 2ms, 21.1us 8clock
+#define ONE_MS_COUNT 48
+
 #endif //!defined(__spi_h__)

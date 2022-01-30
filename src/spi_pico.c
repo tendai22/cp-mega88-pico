@@ -111,15 +111,19 @@ reset_clk
   gpio_put(P_CK, 0);
 }
 
-static void
+static inline void
 wait_clk
 (void)
 {
+// so far, asm nops do not work well. isb seems to help stability
+// of clock pulse width.
+//  asm volatile("isb\n");
 //  asm volatile("nop \n nop \n nop");
 //  asm volatile("nop \n nop \n nop");
 //  asm volatile("nop \n nop \n nop");
-//  asm volatile("nop \n nop \n nop");
-  sleep_us(1);
+//  asm volatile("nop \n nop \n nop\n nop\n nop \n");
+//  asm volatile("isb\n");
+  sleep_us(1);    // 1 clock == 2 wait_clks, 2us or 500kHz
 }
 
 static void
@@ -146,18 +150,16 @@ spi_xfer
 
 int
 sd_wait_resp
-(unsigned char value, int counter, int bitnum)
+(unsigned char value, long int counter, int bitnum)
 {
   unsigned char c;
-  long int ncounter = counter * 100;
+  long int ncounter = counter;
   long int nstart = ncounter;
   if (bitnum == 8) {
     while (ncounter > 0 && (c = sd_in()) == value) {
-      wait_clk();
       ncounter--;
     }
     if (ncounter <= 0) {
-      printf("sd_wait_byte: timeout\n");
       return -1;
     }
 #if defined(SDCARD_DEBUG)
@@ -165,7 +167,7 @@ sd_wait_resp
 #endif
     return c;
   }
-  ncounter /= 2;  // the following loop period is 2us.
+  ncounter *= 8;  // the following loop period is counter * 8clocks.
   gpio_put(P_DI, 1);  // out 1 on DI
   while (ncounter > 0) {
     gpio_put(P_CK, 0);
@@ -176,14 +178,12 @@ sd_wait_resp
     ncounter--;
   }
   if (ncounter <= 0) {
-    printf("sd_wait_resp: time out\n");
     return -1;
   }
 #if defined(SDCARD_DEBUG)
   measured_time = nstart - ncounter;
 #endif
   spi_xfer(0xff, &c);
-  //printf("time: %ld usec\n", nstart - ncounter);
   return c;
 
 }

@@ -57,23 +57,21 @@ ccs;
 
 static int
 debug_flag = 1;
+//
+// SPI Command Debug Dump
+//
+static int
+cmd_flag = 0;
 
-#if defined (SDCARD_DEBUG)
+#define SDCARD_MEASURE_TIME 1
+
+#if defined (SDCARD_MEASURE_TIME)
 static long
 rd_time;
 
 static long
 wr_time;
-#endif //defined(SDCARD_DEBUG)
-
-
-#if 0
-static uint8_t sdcard_spi_write(spi_inst_t *spi, const uint8_t value) {
-  u_int8_t received = SPI_FILL_CHAR;
-  spi_write_read_blocking(spi, &value, &received, 1);
-  return received;
-}
-#endif
+#endif //defined(SDCARD_MEASURE_TIME)
 
 void
 sdcard_init
@@ -81,32 +79,6 @@ sdcard_init
 {
   do_spi_init();
 }
-
-#if 0
-static int
-sd_wait_resp
-(unsigned char value, int counter)
-{
-  unsigned char c;
-  long int ncounter = counter * 100;
-  long int nstart = ncounter;
-  while (ncounter > 0 && (c = sd_in()) == value) {
-    sleep_us(1);
-    ncounter--;
-  }
-  if (ncounter <= 0) {
-    //printf("sd_wait_resp: time out\n");
-    return -1;
-  }
-#if defined(SDCARD_DEBUG)
-  measured_time = nstart - ncounter;
-#endif
-  //printf("time: %ld usec\n", nstart - ncounter);
-  return c;
-
-}
-#endif
-#if 1
 
 static int
 sd_response_in
@@ -121,7 +93,6 @@ sd_response_byte
 {
   return sd_wait_resp(0xff, counter, 8);
 }
-#endif
 
 static unsigned long
 sd_four_in
@@ -135,12 +106,6 @@ sd_four_in
   return rc;
 }
 
-
-//
-// SPI Command Debug Dump
-//
-static int
-cmd_flag = 1;
 
 // Most of the cards seems to need some pre-cs_select clocks.
 // Two of my cards do not work in case pre-cs-select clocks are provided.
@@ -167,7 +132,7 @@ sd_cmd
   sd_out(arg2);
   sd_out(arg3);
   sd_out(crc);
-  c = sd_response_in(20);
+  c = sd_response_in(40);   // 40 * 8 clocks
   if (c < 0) return -1;
   // Read remaining response bites.
   if (0x48 == cmd) {
@@ -206,12 +171,10 @@ sdcard_open
 (void)
 {
   uint32_t dummy;
+  unsigned long rc;
 
-  //gpio_put(P_DI, 1);
   // reset with 80 clocks
   reset_80clks();
-
-  unsigned long rc;
   // cmd0 - GO_IDLE_STATE (response R1)
 restart:
   rc = sd_cmd(0x40, 0x00, 0x00, 0x00, 0x00, 0x95, &dummy);
@@ -226,23 +189,23 @@ restart:
   rc = sd_cmd(0x48, 0x00, 0x00, 0x01, 0x0aa, 0x87, &dummy);
   cs_deselect();
   if (rc < 0) {
+    printf("time out, no card?\n");
     return -1;
   }
   int type;
   if ((rc & 0x04) == 0x04) {  // CMD8 error (illegal command)
     // it means SD Version 1 (legacy card)
     type = 1;   // SD1
-    printf("SD Ver.1\n");
     // reset to IDLE State again
     reset_80clks();
     rc = sd_cmd(0x40, 0x00, 0x00, 0x00, 0x00, 0x95, &dummy);
     cs_deselect();
     if (rc < 0 || 1 != rc) {
-      printf("re IDLE STATE fail\n");
+      printf(" CMD0 fail\n");
       return -1;
     }
     // go to ACMD41 initialize
-  } else if ((dummy & 0x00000fff) != 0x1aa) {
+  } else if (0x1aa != (dummy & 0x00000fff)) {
     printf("ERR\n");
     goto error;
   } else {
@@ -253,47 +216,56 @@ restart:
   int arg = (type == 2) ? 0X40 : 0;
   int count = 0;
   do {
+    // ACMD41 loop
+
     // cmd55 - APP_CMD (response R1)
     sd_cmd(0x77, 0x00, 0x00, 0x00, 0x00, 0x01, &dummy);
     cs_deselect();
     // acmd41 - SD_SEND_OP_COND (response R1)
     rc = sd_cmd(0x69, arg, 0x00, 0x00, 0x00, 0x77/*0x77*/, &dummy);
     cs_deselect();
-    sleep_ms(100);
     if (count++ >= 10) goto error;
-    if (rc == 0x05) {
-      // ACMD41 not supported, try CMD1
-      break;
-    }
-    if (preclock_tweak && (rc != 0x01 && rc != 0)) {
+    if (preclock_tweak && (0x01 != rc && 0 != rc)) {
       // Some cards do not perform ACMD41 with preclock_tweat,
       printf("turn off a tweak, restart\n");
       preclock_tweak = 0;
       goto restart;
     }
-  } while (rc != 0);
-  //ccs = (rc & 0x40000000) ? 1 : 0; // ccs bit high means SDHC card
-  if (rc == 0x05) {
+    if (rc == 0x05) {
+      // ACMD41 not supported, try CMD1
+      break;
+    }
+    sleep_ms(100);  // 100ms delay for the next ACMD41
+  } while (0 != rc);
+
+  if (0x05 == rc) {
+    // CMD1 initialization
     cs_deselect();
     reset_80clks();
     // CMD1
     rc = sd_cmd(0x40, 0x00, 0x00, 0x00, 0x00, 0x95, &dummy);
     cs_deselect();
     if (rc < 0 || 1 != rc) {
-      printf("re IDLE STATE fail\n");
+      printf(" CMD1 fail\n");
       return -1;
     }
     count = 0;
     while(1) {
       rc = sd_cmd(0x41, 0x00, 0x00, 0x00, 0x00, 0x00, &dummy);
       cs_deselect();
-      if (count++ >= 10) goto error;
+      if (count++ >= 10) {
+        printf("  CMD1 fail\n");
+        goto error;
+      }
       if (rc == 0) break;
       sleep_ms(100);
     }
   }
+  if (rc != 0) goto error;
 
-  if (type == 2) {
+  // Now initialization completed.
+
+  if (2 == type) {
     // SD TYPE 2
     // cmd58 - READ_OCR (response R3)
     rc = sd_cmd(0x7a, 0x00, 0x00, 0x00, 0x00, 0xff, &dummy);//0xfd);
@@ -301,18 +273,24 @@ restart:
     ccs = (dummy & 0x40000000) ? 1 : 0; // ccs bit high means SDHC card
     if ((dummy & 0xC0000000) == 0xC0000000) {
       type = 3; // SDHC
-      printf ("SDHC%s\n", (ccs ? " High Capacity" : ""));
     } else {
-      printf("SD Ver.2+\n");
       //rc = sd_cmd(0x50, 0x00, 0x00, 0x02, 0x00, 0x00, &dummy);
       //cs_deselect();
       // force 512 byte/block
     }
   }
-  //gpio_clr_mask(1<<P_CK);
+  // print SDcard type
+  if (3 == type) {
+    printf ("SDHC%s\n", (ccs ? " High Capacity" : ""));
+  } else if (2 == type) {
+    printf ("SD Ver.2+\n");
+  } else if (1 == type) {
+    printf ("SD Ver.1\n");
+  } else {
+    printf ("SD unknown (%d)\n", type);
+  }
   return 0;
 error:
-  //gpio_set_mask(1<<P_CS);
   return -1;
 }
 
@@ -337,7 +315,7 @@ sdcard_fetch_sec
     return -1;
   }
   // Data token 0xFE
-  if ((c = sd_response_byte(10)) < 0 || c != 0xfe) {  // 10 * 100us, or 1ms
+  if ((c = sd_response_byte(10 * 63)) < 0 || c != 0xfe) {  // 1ms == 63countes
     printf("response: %02X\n", c);
     cs_deselect();
     return -2;
@@ -345,7 +323,7 @@ sdcard_fetch_sec
   for (int i = 0; i < 512; i++) {
     buffer[i] = sd_in();
   }
-#if defined(SDCARD_DEBUG)
+#if defined(SDCARD_MEASURE_TIME)
   rd_time = measured_time;
 #endif //defined(SDCARD_DEBUG)
   if (debug_flag & 2) {
@@ -370,8 +348,8 @@ sdcard_fetch_sec
   // XXX: rc check
   //gpio_clr_mask(1<<P_CK);
   cs_deselect();
-#if defined(SDCARD_DEBUG)
-  if (debug_flag) printf("rd_time: %ld usec\n", rd_time);
+#if defined(SDCARD_MEASURE_TIME)
+  if (debug_flag) printf("rd_time: %ld usec\n", rd_time * (1000 / ONE_MS_COUNT));
 #endif //defined(SDCARD_DEBUG)
   return 0;
 }
@@ -416,13 +394,14 @@ sdcard_store_sec
     return -3;
   }
   // skip busy "0" bits on DO
-  if (sd_wait_resp(0, 2500, 8) < 0) {   // 2500 * 100us, or 250ms
+  // 1 clock == 2us, 8 clocks == 16us, 62.5 counts == 1ms
+  if (sd_wait_resp(0, ONE_MS_COUNT * 250, 8) < 0) {   // 2500 * 100us, or 250ms
     //restore_interrupts(ints);
     cs_deselect();
     printf("DR: timeout\n");
     return -3;
   }
-#if defined(SDCARD_DEBUG)
+#if defined(SDCARD_MEASURE_TIME)
   wr_time = measured_time;
 #endif //defined(SDCARD_DEBUG)
   int d = c & 0x1f;
@@ -447,7 +426,7 @@ sdcard_store_sec
   //gpio_clr_mask(1<<P_CK);
   cs_deselect();
   //restore_interrupts(ints);
-#if defined(SDCARD_DEBUG)
+#if defined(SDCARD_MEASURE_TIME)
   if (debug_flag) printf("wr_time: %ld usec\n", wr_time);
 #endif //defined(SDCARD_DEBUG)
   return 0;
