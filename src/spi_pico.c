@@ -166,6 +166,7 @@ sd_wait_resp
     return c;
   }
   ncounter /= 2;  // the following loop period is 2us.
+  gpio_put(P_DI, 1);  // out 1 on DI
   while (ncounter > 0) {
     gpio_put(P_CK, 0);
     wait_clk();

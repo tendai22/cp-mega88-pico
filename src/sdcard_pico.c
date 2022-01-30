@@ -139,12 +139,15 @@ sd_four_in
 //
 // SPI Command Debug Dump
 //
-#define SDCARD_CMD_DUMP
-#ifdef SDCARD_CMD_DUMP
-static int cmd_flag = 1;
-#else
-static int cmd_flag = 0;
-#endif
+static int
+cmd_flag = 1;
+
+// Most of the cards seems to need some pre-cs_select clocks.
+// Two of my cards do not work in case pre-cs-select clocks are provided.
+// So, preclock are provided af first. If initialization fails (in ACMD41),
+// turn off this tweak and restart initialization.
+static unsigned char
+preclock_tweak = 1;
 
 static int
 sd_cmd
@@ -154,7 +157,9 @@ sd_cmd
   unsigned long rc;
   
   if (cmd_flag) printf("[%02X %02X %02X %02X %02X (%02X)]->", cmd, arg0, arg1, arg2, arg3, crc);
-  sd_out(0xff);
+  if (preclock_tweak) {
+    sd_out(0xff);  // sync with this 8 clks before CS down.
+  }
   cs_select();
   sd_out(cmd);
   sd_out(arg0);
@@ -208,12 +213,14 @@ sdcard_open
 
   unsigned long rc;
   // cmd0 - GO_IDLE_STATE (response R1)
+restart:
   rc = sd_cmd(0x40, 0x00, 0x00, 0x00, 0x00, 0x95, &dummy);
   cs_deselect();
   //sleep_us(10);
   if (rc < 0 ||1 != rc) {
     return -1;
   }
+
   cs_deselect();
   // cmd8 - SEND_IF_COND (response R7)
   rc = sd_cmd(0x48, 0x00, 0x00, 0x01, 0x0aa, 0x87, &dummy);
@@ -228,7 +235,6 @@ sdcard_open
     printf("SD Ver.1\n");
     // reset to IDLE State again
     reset_80clks();
-
     rc = sd_cmd(0x40, 0x00, 0x00, 0x00, 0x00, 0x95, &dummy);
     cs_deselect();
     if (rc < 0 || 1 != rc) {
@@ -258,6 +264,12 @@ sdcard_open
     if (rc == 0x05) {
       // ACMD41 not supported, try CMD1
       break;
+    }
+    if (preclock_tweak && (rc != 0x01 && rc != 0)) {
+      // Some cards do not perform ACMD41 with preclock_tweat,
+      printf("turn off a tweak, restart\n");
+      preclock_tweak = 0;
+      goto restart;
     }
   } while (rc != 0);
   //ccs = (rc & 0x40000000) ? 1 : 0; // ccs bit high means SDHC card
