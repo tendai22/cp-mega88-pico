@@ -1,4 +1,4 @@
-# Install script for directory: /home/kuma/pico/project/cp-mega88-pico
+# Install script for directory: /home/kuma/Project/pico/project/cp-mega88-pico
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -34,7 +34,7 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("/home/kuma/pico/project/cp-mega88-pico/pico-sdk/cmake_install.cmake")
+  include("/home/kuma/Project/pico/project/cp-mega88-pico/pico-sdk/cmake_install.cmake")
 endif()
 
 if(CMAKE_INSTALL_COMPONENT)
@@ -45,5 +45,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/home/kuma/pico/project/cp-mega88-pico/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/home/kuma/Project/pico/project/cp-mega88-pico/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")
