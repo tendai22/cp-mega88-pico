@@ -61,7 +61,7 @@ debug_flag = 1;
 // SPI Command Debug Dump
 //
 static int
-cmd_flag = 0;
+cmd_flag = 1;
 
 #define SDCARD_MEASURE_TIME 1
 
@@ -114,6 +114,9 @@ sd_four_in
 static unsigned char
 preclock_tweak = 1;
 
+static unsigned char
+traditional_initialize = 1;
+
 static int
 sd_cmd
 (char cmd, char arg0, char arg1, char arg2, char arg3, char crc, unsigned long *resp)
@@ -135,21 +138,14 @@ sd_cmd
   c = sd_response_in(40);   // 40 * 8 clocks
   if (c < 0) return -1;
   // Read remaining response bites.
-  if (0x48 == cmd) {
+  if (0x48 == cmd || 0x7a == cmd) {
     if (cmd_flag) printf("%02X:", c);
     // Even if R1 return value, we still need to read four bytes, no special reason
     // is known.
     rc = sd_four_in();
     if (cmd_flag) printf("%X\n", rc);
     if (resp) *resp = rc;
-    return (c & 0x04) ? -2: c;  // R7
-  }
-  if (0x7a == cmd) {
-    if (cmd_flag) printf("%02X:", c);
-    rc = sd_four_in();
-    if (cmd_flag) printf("%X\n", rc);
-    if (resp) *resp = rc;
-    return c;  // R3
+    return c;  // R1, R7 returns on *resp
   }
   if (cmd_flag) printf("%02X\n", c);
     //else printf(".");
@@ -166,110 +162,101 @@ reset_80clks
   reset_clk();
 }
 
-int
-sdcard_open
-(void)
+static int
+sd_initCMD
+(char type, char arg)
 {
-  uint32_t dummy;
-  unsigned long rc;
-
-  // reset with 80 clocks
-  reset_80clks();
-  // cmd0 - GO_IDLE_STATE (response R1)
-restart:
-  rc = sd_cmd(0x40, 0x00, 0x00, 0x00, 0x00, 0x95, &dummy);
-  cs_deselect();
-  //sleep_us(10);
-  if (rc < 0 ||1 != rc) {
-    return -1;
-  }
-
-  cs_deselect();
-  // cmd8 - SEND_IF_COND (response R7)
-  rc = sd_cmd(0x48, 0x00, 0x00, 0x01, 0x0aa, 0x87, &dummy);
-  cs_deselect();
-  if (rc < 0) {
-    printf("time out, no card?\n");
-    return -1;
-  }
-  int type;
-  if ((rc & 0x04) == 0x04) {  // CMD8 error (illegal command)
-    // it means SD Version 1 (legacy card)
-    type = 1;   // SD1
-    // reset to IDLE State again
-    reset_80clks();
-    rc = sd_cmd(0x40, 0x00, 0x00, 0x00, 0x00, 0x95, &dummy);
-    cs_deselect();
-    if (rc < 0 || 1 != rc) {
-      printf(" CMD0 fail\n");
-      return -1;
-    }
-    // go to ACMD41 initialize
-  } else if (0x1aa != (dummy & 0x00000fff)) {
-    printf("ERR\n");
-    goto error;
-  } else {
-    printf("SD Ver.2\n");
-    // 0x1aa
-    type = 2; // SD2
-  }
-  int arg = (type == 2) ? 0X40 : 0;
-  int count = 0;
-  do {
-    // ACMD41 loop
-
+  int rc;
+  unsigned long dummy;
+  if (1 == type) {
+    rc = sd_cmd(0x41, 0x00, 0x00, 0x00, 0x00, 0x00, &dummy);
+  } else if (2 == type) {
     // cmd55 - APP_CMD (response R1)
     sd_cmd(0x77, 0x00, 0x00, 0x00, 0x00, 0x01, &dummy);
     cs_deselect();
     // acmd41 - SD_SEND_OP_COND (response R1)
     rc = sd_cmd(0x69, arg, 0x00, 0x00, 0x00, 0x77/*0x77*/, &dummy);
-    cs_deselect();
-    if (count++ >= 10) goto error;
-    if (preclock_tweak && (0x01 != rc && 0 != rc)) {
-      // Some cards do not perform ACMD41 with preclock_tweat,
-      printf("turn off a tweak, restart\n");
-      preclock_tweak = 0;
+  }
+  cs_deselect();
+  return rc;
+}
+
+int
+sdcard_open
+(void)
+{
+  unsigned long dummy;
+  int rc;
+  char type; // 1: SD, 2: SDV2, 3:
+  char arg; 
+  char initialized = 0;
+  char flip_count = 0;
+  char err = 0;
+
+  // reset with 80 clocks
+  reset_80clks();
+  // cmd0 - GO_IDLE_STATE (response R1)
+restart:
+  if (flip_count > 2) {
+    return -4;  // unexpected error
+  }
+  rc = sd_cmd(0x40, 0x00, 0x00, 0x00, 0x00, 0x95, &dummy);
+  cs_deselect();
+  if (rc < 0) {
+    printf("time out, no card?\n");
+    return -1;  // -1: no card.
+  }
+  if (0x1 != rc) {
+    printf("unexpected result (%lX)\n", rc);
+    return -3;  // -3: unexpected result
+  }
+  // cmd8 - SEND_IF_COND (response R7)
+  rc = sd_cmd(0x48, 0x00, 0x00, 0x01, 0x0aa, 0x87, &dummy);
+  cs_deselect();
+  if (rc < 0) {
+    return -4;  // -3: unexpected result
+  }
+  if (rc & 0x04) {
+    // CMD8 error (illegal command)
+    // it means SD Version 1 (legacy card)
+    type = 1;
+    arg = 0;
+  } else if (0x1aa == (dummy & 0x00000fff)) {
+    type = 2;
+    arg = 0X40;
+    // SD Version 2
+  } else {
+    // R4 return is not 0x1aa
+    return -4; // unexpected error
+  }
+  int count = 0;
+  while(1) {
+    rc = sd_initCMD(type, arg);  // CMD1 or ACMD41
+    if (count++ >= 10) {
+      printf("%s time out\n", type == 1 ? "CMD1" : "ACMD41");
+      return -2;  // -2: initialize time out
+    }
+    if (rc & 0x04) {
+      // Illegal Command bit, ... maybe pre-cmd clock wrong.
+      preclock_tweak = !preclock_tweak;
+      flip_count++;
+      printf("toggle tweak flag, restart\n");
       goto restart;
     }
-    if (rc == 0x05) {
-      // ACMD41 not supported, try CMD1
-      break;
-    }
-    sleep_ms(100);  // 100ms delay for the next ACMD41
-  } while (0 != rc);
-
-  if (0x05 == rc) {
-    // CMD1 initialization
-    cs_deselect();
-    reset_80clks();
-    // CMD1
-    rc = sd_cmd(0x40, 0x00, 0x00, 0x00, 0x00, 0x95, &dummy);
-    cs_deselect();
-    if (rc < 0 || 1 != rc) {
-      printf(" CMD1 fail\n");
-      return -1;
-    }
-    count = 0;
-    while(1) {
-      rc = sd_cmd(0x41, 0x00, 0x00, 0x00, 0x00, 0x00, &dummy);
-      cs_deselect();
-      if (count++ >= 10) {
-        printf("  CMD1 fail\n");
-        goto error;
-      }
-      if (rc == 0) break;
-      sleep_ms(100);
-    }
+    if (0 == rc) break;
+    sleep_ms(100);
   }
-  if (rc != 0) goto error;
-
-  // Now initialization completed.
-
-  if (2 == type) {
+  if (1 == type) {
+    if (0 != rc)
+      return -6;  // unexpected error
+  } else if (2 == type) {
     // SD TYPE 2
     // cmd58 - READ_OCR (response R3)
     rc = sd_cmd(0x7a, 0x00, 0x00, 0x00, 0x00, 0xff, &dummy);//0xfd);
     cs_deselect();
+    if (0 != rc) {
+      return -5; // unexpected error
+    }
     ccs = (dummy & 0x40000000) ? 1 : 0; // ccs bit high means SDHC card
     if ((dummy & 0xC0000000) == 0xC0000000) {
       type = 3; // SDHC
@@ -279,6 +266,7 @@ restart:
       // force 512 byte/block
     }
   }
+done:
   // print SDcard type
   if (3 == type) {
     printf ("SDHC%s\n", (ccs ? " High Capacity" : ""));
@@ -290,8 +278,6 @@ restart:
     printf ("SD unknown (%d)\n", type);
   }
   return 0;
-error:
-  return -1;
 }
 
 int
