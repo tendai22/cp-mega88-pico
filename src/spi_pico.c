@@ -41,14 +41,6 @@
 #define SPI_FILL_CHAR 0xff
 
 #define USE_SOFTSPI
-
-#if defined(USE_SOFTSPI)
-#include "hardware/clocks.h"
-#include "hardware/sync.h"
-//
-//  software spi, using gpio
-//
-
 // SPI Pin Assign
 
 // RX  GP00
@@ -59,6 +51,13 @@
 #define P_CS 1
 #define P_CK 2
 #define P_DI 3
+
+#if defined(USE_SOFTSPI)
+#include "hardware/clocks.h"
+#include "hardware/sync.h"
+//
+//  software spi, using gpio
+//
 
 #define M_DO (1<<P_DO)
 #define M_CS (1<<P_CS)
@@ -248,7 +247,32 @@ do_spi_init
   gpio_put(P_CS, 1);
 }
 
+void
+reset_clk
+(void)
+{
+  cs_deselect();
+  gpio_put(P_CK, 0);
+}
 
+int
+sd_wait_resp
+(unsigned char value, long int counter, int bitnum)
+{
+  unsigned char c;
+  long int ncounter = counter;
+  long int nstart = ncounter;
+  while (ncounter > 0 && (c = sd_in()) == value) {
+    ncounter--;
+  }
+  if (ncounter <= 0) {
+    return -1;
+  }
+#if defined(SDCARD_DEBUG)
+    measured_time = nstart - ncounter;
+#endif
+  return c;
+}
 
 unsigned long
 sd_in
