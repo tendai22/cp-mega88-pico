@@ -47,6 +47,7 @@ long int measured_time;
 //
 // 1ms counter value for sp_wait_resp 2nd argument
 // clock 2ms, 21.1us 8clock
-#define ONE_MS_COUNT 48
+// clock 5MHz 1.2us 8clock
+#define ONE_MS_COUNT 900
 
 #endif //!defined(__spi_h__)

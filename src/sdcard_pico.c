@@ -41,7 +41,7 @@
 //
 // pico specific definition
 //
-#define SPI_FILL_CHAR 0xff
+//#define SPI_FILL_CHAR 0xff
 
 static unsigned char
 buffer[512];
@@ -277,6 +277,8 @@ done:
   } else {
     printf ("SD unknown (%d)\n", type);
   }
+  debug_flag = 0;
+  cmd_flag = 0;
   return 0;
 }
 
@@ -301,7 +303,7 @@ sdcard_fetch_sec
     return -1;
   }
   // Data token 0xFE
-  if ((c = sd_response_byte(10 * 63)) < 0 || c != 0xfe) {  // 1ms == 63countes
+  if ((c = sd_response_byte(ONE_MS_COUNT * 40)) < 0 || c != 0xfe) {  // 1ms == 63countes
     printf("response: %02X\n", c);
     cs_deselect();
     return -2;
@@ -371,8 +373,8 @@ sdcard_store_sec
   sd_out(0xff); // CRC dummy 1/2
   sd_out(0xff); // CRC dummy 2/2
   // read data response
-//  if ((c = sd_response_byte(10000)) < 0) {   // 10 * 100us, or 1ms
-    if ((c = sd_in()) < 0) {
+  if ((c = sd_response_byte(ONE_MS_COUNT * 10)) < 0) {   // 10 * 100us, or 1ms
+//    if ((c = sd_in()) < 0) {
 
     //restore_interrupts(ints);
     cs_deselect();
