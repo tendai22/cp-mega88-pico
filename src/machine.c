@@ -427,16 +427,16 @@ prompt
     for (int i = 0; i < 256; ++i, ++addr) {
       unsigned short top = addr;
       if (i % 16 == 0) {
-        debug(("%04X ", addr);
+        debug("%04X ", addr);
       }
       unsigned char c = sram_read(addr);
-      debug(("%02X ", c);
+      debug("%02X ", c);
       if ((i % 16) == 15) {
         for (int j = 0; j < 16; ++j) {
           c = sram_read(top + j);
-          debug( ("%c", (0x20 <= c && c <= 0x7f) ? c : '.');
+          debug("%c", (0x20 <= c && c <= 0x7f) ? c : '.');
         }
-        debug(("\n");
+        debug0("\n");
       }
     }
     return;
@@ -633,12 +633,12 @@ prompt
     }
     for (int i = 0; i < 128; ++i, ++flash_addr) {
       if (i % 16 == 0) {
-        debug(("%04X ", flash_addr);
+        debug("%04X ", flash_addr);
       }
       unsigned char c = flash_read(flash_addr);
-      debug(("%02X ", c);
+      debug("%02X ", c);
       if ((i % 16) == 15) {
-        debug(("\n");
+        debug0("\n");
       }
     }
     return;

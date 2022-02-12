@@ -507,6 +507,7 @@ fat_next
   }
   return -1;
 }
+
 #else
 int
 fat_next

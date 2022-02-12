@@ -35,7 +35,7 @@
 #include "hardware_config.h"
 #include <string.h>
 #include <stdio.h>
-#if defined(RASPBERRY_PI_PICO)
+#if defined(PLATFORM_PICO)
 #include "pico/stdlib.h"
 #endif //defined(RASPBERRY_PI_PICO)
 #if defined(USE_UART)
@@ -67,7 +67,7 @@ extern void end_disk_write(void);
 //
 static void _outbyte(int c)
 {
-#if defined(RASPBERRY_PI_PICO)
+#if defined(PLATFORM_PICO)
 #if defined(USE_UART)
     while(!uart_is_writable(UART_ID))
         sleep_us(10);
@@ -78,14 +78,14 @@ static void _outbyte(int c)
 #elif defined(PLATFORM_AVR)
 	con_putchar(c);
 #else
-#error "not implemented _outbyte
+#error "not implemented _outbyte"
 #endif //defined(RASPBERRY_PI_PICO)
 
 }
 
 static int _inbyte(unsigned short timeout)
 {
-#if defined(RASPBERRY_PI_PICO)
+#if defined(PLATFORM_PICO)
 #if defined(USE_UART)
     unsigned long count = timeout * 100; // 10us unit
     while (count > 0) {
