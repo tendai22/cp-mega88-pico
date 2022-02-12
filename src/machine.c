@@ -28,13 +28,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-
-#include <stdio.h>
+#include "hardware_config.h"
+#include "debug.h"
+#if defined(PLATFORM_PICO)
 #include "pico/stdlib.h"
 //#if defined(USE_UART)
 //#include "pico/stdio_uart.h"
 //#endif //defined(USE_UART)
-
+#endif //defined(PLATFORM_PICO)
 #include "flash.h"
 
 #if !defined(TEST)
@@ -57,7 +58,9 @@
 #include "platform.h"
 #include "sdcard.h"
 #include "sram.h"
+#if defined(USE_XMODEM)
 #include "xmodem.h"
+#endif //defined(USE_XMODEM)
 
 #if defined(CPU_EMU_C)
 # include "cpu_8080.h"
@@ -278,7 +281,7 @@ mount
   for (;;) {
     if (fat_next() < 0) break;
     char attr = fat_attr();
-    //printf("attr: %02X\n", attr);
+    //debug(("attr: %02X\n", attr);
     if (0 != (0x10 & attr)) continue; // ignore if it it a directory
     fat_name(buf, sizeof buf);
     if (0 == buf[0]) return;
@@ -424,16 +427,16 @@ prompt
     for (int i = 0; i < 256; ++i, ++addr) {
       unsigned short top = addr;
       if (i % 16 == 0) {
-        printf("%04X ", addr);
+        debug(("%04X ", addr);
       }
       unsigned char c = sram_read(addr);
-      printf("%02X ", c);
+      debug(("%02X ", c);
       if ((i % 16) == 15) {
         for (int j = 0; j < 16; ++j) {
           c = sram_read(top + j);
-          printf ("%c", (0x20 <= c && c <= 0x7f) ? c : '.');
+          debug( ("%c", (0x20 <= c && c <= 0x7f) ? c : '.');
         }
-        printf("\n");
+        debug(("\n");
       }
     }
     return;
@@ -518,7 +521,7 @@ prompt
     name[0] = '\0';
     for (;;) {
       int r;
-      if ((r = fat_next()) < 0) { printf("%d\n", r); break; }
+      if ((r = fat_next()) < 0) { debug("%d\n", r); break; }
       char attr = fat_attr();
 # if defined(USE_EXFAT)
       char gsflag = fat_gsflag();
@@ -560,10 +563,12 @@ prompt
       break;
     }
     return;
+#if defined(USE_FAT)
   } else if (0 == strdcmp("m", cmd, ' ')) {
     if (NULL == arg) goto usage;
     mount(arg);
     return;
+#endif //defined(USE_FAT)
 #endif // defined(MON_FAT)
 #if defined(MON_CON)
   } else if (0 == strdcmp("vt", cmd, ' ')) {
@@ -610,13 +615,13 @@ prompt
     unsigned short crc = 0;
     len = xmodem_receive_flash(&crc);
     end_flash_write();
-    printf("\nwrite %ld (%lX) bytes, crc = %04X\n", len, len, crc);
+    debug("\nwrite %ld (%lX) bytes, crc = %04X\n", len, len, crc);
     return;
   } else if (0 == strdcmp("xs", cmd, ' ')) {
     unsigned long len;
     unsigned short crc = 0;
     len = xmodem_send_flash(&crc);
-    printf("send %ld (%lX) bytes, crc = %04X\n", len, len, crc);
+    debug("send %ld (%lX) bytes, crc = %04X\n", len, len, crc);
     return;
 # endif // defined(USE_XMODEM)
 # if defined(USE_FLASH)
@@ -628,12 +633,12 @@ prompt
     }
     for (int i = 0; i < 128; ++i, ++flash_addr) {
       if (i % 16 == 0) {
-        printf("%04X ", flash_addr);
+        debug(("%04X ", flash_addr);
       }
       unsigned char c = flash_read(flash_addr);
-      printf("%02X ", c);
+      debug(("%02X ", c);
       if ((i % 16) == 15) {
-        printf("\n");
+        debug(("\n");
       }
     }
     return;
@@ -1127,7 +1132,7 @@ skip_fat:
       char buf[8 + 1 + 3 + 1];
       eeprom_read_string(17, buf);
 #if defined(USE_FAT)
-    printf("sd_fat: %d\n", sd_fat);
+    debug("sd_fat: %d\n", sd_fat);
       if (0 != sd_fat) mount(buf);
 #endif
     }

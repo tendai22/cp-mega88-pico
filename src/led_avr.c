@@ -29,12 +29,17 @@
  * DAMAGE.
  */
 
+#include "hardware_config.h"
 #include "led.h"
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
 static volatile unsigned char blink = 0;
+
+#if defined(MCU_ATMEGA328)
+#define PINC7 PIN7
+#endif //defined(MCU_ATMEGA328)
 
 ISR
 (TIMER1_COMPA_vect)

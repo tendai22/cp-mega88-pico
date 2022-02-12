@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Takashi TOYOSHIMA <toyoshim@gmail.com>
+ * Copyright (c) 2022, Norihiro KUMAGAI <tendai22plus@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,53 +29,28 @@
  * DAMAGE.
  */
 
-#include "con.h"
-#include "debug.h"
+#if !defined(__HARDWARE_CONFIG_H)
+#define __HARDWARE_CONFIG_H
+/////////////////////////////////////
+// arduino:avr:uno
+//
+#define AVR_GCC
+#define PLATFORM_AVR
+#define MCU_ATMEGA328
 
-static void
-put_halfhex
-(unsigned char c)
-{
-  if (c < 10) con_putchar('0' + c);
-  else con_putchar('A' - 10 + c);
-}
+#define USE_FAT
+//#define USE_EXFAT
+//#define USE_XMODEM
+#define CPU_EMU_C
+//
+// PC0: 
+// PC1:
+// PC5: X1-1 CS
+// PC3: X1-2 DI
+// PC2: X1-5 SCK
+// PC4: X1-7 DO
 
-void
-con_puthex
-(unsigned char c)
-{
-  put_halfhex(c >> 4);
-  put_halfhex(c & 15);
-}
 
-void
-con_putnum_u16
-(unsigned short n, int digit)
-{
-  unsigned short d = 10000;
-  if (digit > 0) {
-    d = 1;
-    for (digit--; digit > 0; digit--) d *= 10;
-  }
-  do {
-    int num = n / d;
-    n = n % d;
-    d /= 10;
-    con_putchar('0' + num);
-  } while (0 != d);
-}
 
-void
-con_puts
-(const char *s)
-{
-  while (0 != *s) con_putchar(*s++);
-}
 
-void
-con_putsln
-(const char *s)
-{
-  con_puts(s);
-  con_puts(X("\r\n"));
-}
+#endif //defined(__HARDWARE_CONFIG_H)

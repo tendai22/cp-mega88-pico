@@ -29,6 +29,7 @@
  * DAMAGE.
  */
 
+#include "hardware_config.h"
 #include "sdcard.h"
 
 #include <avr/io.h>
@@ -47,6 +48,9 @@
 #elif defined(MCU_32U2)
 # define P_DI _BV(PINC5)
 # define P_CS _BV(PINC6)
+#elif defined(MCU_ATMEGA328)
+# define P_DI _BV(PINC3)
+# define P_CS _BV(PINC5)
 #else
 # error
 #endif
@@ -57,6 +61,9 @@
 #elif defined(MCU_32U2)  // emulate open-drain
 # define PIN_HIGH(x) DDR &= ~(x)
 # define PIN_LOW(x) DDR |= (x)
+#elif defined(MCU_ATMEGA328)
+# define PIN_HIGH(x) PORT |= (x)
+# define PIN_LOW(x) PORT &= ~(x)
 #else
 # error
 #endif
@@ -206,11 +213,11 @@ sdcard_open
 }
 
 int
-sdcard_fetch
+sdcard_fetch_sec
 (unsigned long blk_addr)
 {
   cur_blk = blk_addr;
-  if (0 != ccs) blk_addr >>= 9; // SDHC cards use block addresses
+  if (0 == ccs) blk_addr <<= 9; // SD cards use byte-offset address
   // cmd17
   unsigned long rc =
     sd_cmd(0x51, blk_addr >> 24, blk_addr >> 16, blk_addr >> 8, blk_addr, 0x00);
@@ -228,10 +235,17 @@ sdcard_fetch
 }
 
 int
-sdcard_store
+sdcard_fetch
 (unsigned long blk_addr)
 {
-  if (0 != ccs) blk_addr >>= 9; // SDHC cards use block addresses
+  return sdcard_fetch_sec(blk_addr >> 9);
+}
+
+int
+sdcard_store_sec
+(unsigned long blk_addr)
+{
+  if (0 == ccs) blk_addr <<= 9; // SD cards accecpt byte address
   // cmd24
   unsigned long rc =
     sd_cmd(0x58, blk_addr >> 24, blk_addr >> 16, blk_addr >> 8, blk_addr, 0x00);
@@ -249,6 +263,13 @@ sdcard_store
   PIN_LOW(P_CK);
 
   return 0;
+}
+
+int
+sdcard_store
+(unsigned long blk_addr)
+{
+  return sdcard_store_sec(blk_addr >> 9); // pass sector address
 }
 
 unsigned short
