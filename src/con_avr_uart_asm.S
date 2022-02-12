@@ -30,6 +30,7 @@
  */
 
 	.text
+#define CLK_20MHZ
 
 #if defined(MCU_32U4) || defined(MCU_32U2)
 .equ	PORT,11

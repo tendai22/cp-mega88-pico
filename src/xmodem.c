@@ -32,9 +32,12 @@
      void _outbyte(int c);
  */
 
+#include "hardware_config.h"
 #include <string.h>
 #include <stdio.h>
+#if defined(RASPBERRY_PI_PICO)
 #include "pico/stdlib.h"
+#endif //defined(RASPBERRY_PI_PICO)
 #if defined(USE_UART)
 #include "pico/stdio_uart.h"
 #endif // defined(USE_UART)
@@ -64,6 +67,7 @@ extern void end_disk_write(void);
 //
 static void _outbyte(int c)
 {
+#if defined(RASPBERRY_PI_PICO)
 #if defined(USE_UART)
     while(!uart_is_writable(UART_ID))
         sleep_us(10);
@@ -71,10 +75,17 @@ static void _outbyte(int c)
 #else
 	putchar_raw(c);
 #endif // defined(USE_UART)
+#elif defined(PLATFORM_AVR)
+	con_putchar(c);
+#else
+#error "not implemented _outbyte
+#endif //defined(RASPBERRY_PI_PICO)
+
 }
 
 static int _inbyte(unsigned short timeout)
 {
+#if defined(RASPBERRY_PI_PICO)
 #if defined(USE_UART)
     unsigned long count = timeout * 100; // 10us unit
     while (count > 0) {
@@ -91,6 +102,19 @@ static int _inbyte(unsigned short timeout)
 	int c = getchar_timeout_us(to);
 	return c == PICO_ERROR_TIMEOUT ? -1 : c;
 #endif // defined(USE_UART)
+#elif defined(PLATFORM_AVR)
+    unsigned long count = timeout * 100; // 10us unit
+    while (count > 0) {
+        if (con_peek()) {
+            return con_getchar();
+        }
+        _delay_us(10);
+        count--;
+    }
+    return -1;
+#else
+#error
+#endif //defined(platforms)
 }
 
 
