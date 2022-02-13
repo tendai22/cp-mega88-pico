@@ -29,6 +29,7 @@
  * DAMAGE.
  */
 
+#include "hardware_config.h"
 #include "con.h"
 #include "debug.h"
 

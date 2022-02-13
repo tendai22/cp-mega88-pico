@@ -31,7 +31,6 @@ add_executable(cpmega88
 
 target_compile_options(cpmega88
         PUBLIC -DMCU_PICO
-        PUBLIC -DCPU_EMU_C
         PUBLIC -DMON_MEM
         PUBLIC -DUSE_FLASH
         PUBLIC -DUSE_XMODEM

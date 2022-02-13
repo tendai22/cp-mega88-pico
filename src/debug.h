@@ -43,6 +43,7 @@ extern char __pbuf[];
 #define debug(fmt, ...) printf(X(fmt), __VA_ARGS__)
 #define debug0(fmt) printf(X(fmt))
 #else
+#define X(str) str
 #define debug(fmt, ...) printf(fmt, __VA_ARGS__)
 #define debug0(fmt) printf(fmt)
 #endif //defined(AVR_GCC)

@@ -34,11 +34,17 @@
 /////////////////////////////////////
 // arduino:avr:uno
 //
+#if 1
 #define AVR_GCC
 #define PLATFORM_AVR
 #define MCU_ATMEGA328
+#endif
 
-#define USE_FAT
+#if 0
+#define PLATFORM_PICO
+#endif
+
+//#define USE_FAT
 //#define USE_EXFAT
 //#define USE_XMODEM
 #define CPU_EMU_C
