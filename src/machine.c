@@ -1064,6 +1064,7 @@ int
 machine_boot
 (void)
 {
+  int c;
   con_init();
   led_init();
   sram_init();
@@ -1073,6 +1074,9 @@ machine_boot
   con_putsln("\r\nCP/Mega88");
 #else // defined(MSG_MIN)
   con_putsln("\r\nbooting CP/Mega88 done.");
+  while (1)
+    while(-1 == (c = con_getchar()));
+      con_putchar(c);
 #endif // defined(MSG_MIN)
 #if defined(CLR_MEM)
   mem_clr();
