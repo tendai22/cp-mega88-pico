@@ -37,6 +37,20 @@
 extern unsigned short uart_tx(unsigned char);
 extern unsigned char uart_rx(void);
 
+static inline void
+TOGGLE
+(void)
+{
+  PORTC ^= _BV(5);
+}
+
+static inline void
+T2
+(void)
+{
+  PORTC ^= _BV(4);
+}
+
 static void
 reset_int
 (void)
@@ -129,7 +143,10 @@ int
 con_getchar
 (void)
 {
-  if (fifo_rdptr == fifo_wrptr) return -1;
+  if (fifo_rdptr == fifo_wrptr) {
+    asm volatile("nop");    // one dummy nop is needed to work con_getchar
+    return -1;
+  }
   int rc = fifo[fifo_rdptr++];
   fifo_rdptr &= 7;
   return rc;
