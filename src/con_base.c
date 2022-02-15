@@ -32,6 +32,8 @@
 #include "hardware_config.h"
 #include "con.h"
 #include "debug.h"
+#include <avr/pgmspace.h>
+#include <WString.h>
 
 static void
 put_halfhex
@@ -78,5 +80,17 @@ con_putsln
 (const char *s)
 {
   con_puts(s);
-  con_puts(X("\r\n"));
+  con_puts("\r\n");
+}
+
+void
+con_puts2
+(const char *s)
+{
+  char c;
+  while ((c = *s++)) {
+    if ('\n' == c)
+      con_putchar('\r');
+    con_putchar(c);
+  }
 }

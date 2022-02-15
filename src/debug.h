@@ -38,10 +38,9 @@
 #if defined(AVR_GCC)
 #include <avr/pgmspace.h>
 extern char __pbuf[];
-#define PBUF_SIZE 63
-#define X(str) strncpy_P(__pbuf, PSTR(str), PBUF_SIZE)
-#define debug(fmt, ...) printf(X(fmt), __VA_ARGS__)
-#define debug0(fmt) printf(X(fmt))
+#define PBUF_SIZE 100
+#define debug(fmt, ...) do{ sprintf_P(__pbuf, PSTR(fmt), __VA_ARGS__); con_puts2(__pbuf); } while(0)
+#define debug0(fmt) do{ sprintf_P(__pbuf, PSTR(fmt)); con_puts2(__pbuf); } while(0)
 #else
 #define X(str) str
 #define debug(fmt, ...) printf(fmt, __VA_ARGS__)
