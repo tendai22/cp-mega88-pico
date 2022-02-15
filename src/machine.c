@@ -1064,6 +1064,7 @@ int
 machine_boot
 (void)
 {
+  int c;
   con_init();
   led_init();
   sram_init();
@@ -1080,7 +1081,6 @@ machine_boot
       ;
     con_putchar(c);
   }
-
 #endif // defined(MSG_MIN)
 #if defined(CLR_MEM)
   mem_clr();
