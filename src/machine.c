@@ -1064,7 +1064,6 @@ int
 machine_boot
 (void)
 {
-  int c;
   con_init();
   led_init();
   sram_init();
