@@ -44,7 +44,7 @@
 #define PLATFORM_PICO
 #endif
 
-//#define USE_FAT
+#define USE_FAT
 //#define USE_EXFAT
 //#define USE_XMODEM
 #define CPU_EMU_C

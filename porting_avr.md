@@ -42,3 +42,4 @@ ATmega328+秋月DRAMへの移植。
 * debug関数。static グローバルなchar配列(101バイト)上に`sprintf_P`関数を用いて文字列を展開し、それを`con_puts`で出力するようにした。
 * LFをCRLFに展開する出力関数: `con_puts2`を作成。
 
+* SDcardのテスト。

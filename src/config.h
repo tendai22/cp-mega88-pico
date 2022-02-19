@@ -53,7 +53,7 @@
 /* #  define USE_FAT */
 //#  define MSG_MIN
 /* #  define CLR_MEM */
-#  define CHK_MEM
+//#  define CHK_MEM
 #  define CHK_MIN
 /* #  define CHK_SDC */
 #  define MONITOR

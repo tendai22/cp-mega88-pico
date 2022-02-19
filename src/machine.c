@@ -1074,12 +1074,14 @@ machine_boot
 #else // defined(MSG_MIN)
   con_putsln("\r\nbooting CP/Mega88 done.");
   debug0("\r\ndo printf\n");
+#if 0
   int c;
   while (1) {
     while (-1 == (c = con_getchar()))
       ;
     con_putchar(c);
   }
+#endif
 #endif // defined(MSG_MIN)
 #if defined(CLR_MEM)
   mem_clr();

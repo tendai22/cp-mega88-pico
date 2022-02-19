@@ -30,6 +30,7 @@
  */
 
 #include "hardware_config.h"
+#include "debug.h"
 #include "sdcard.h"
 
 #include <avr/io.h>
@@ -127,13 +128,15 @@ sd_in
 }
 
 static unsigned long
-sd_cmd
+do_sd_cmd
 (char cmd, char arg0, char arg1, char arg2, char arg3, char crc)
 {
   unsigned char rc;
   PIN_HIGH(P_DI);
+  sd_out(0xff);
   PIN_LOW(P_CS);
 
+  debug("%02X %02X %02X %02X %02X %02X ->", (unsigned char)cmd, (unsigned char)arg0, (unsigned char)arg1, (unsigned char)arg2, (unsigned char)arg3, (unsigned char)crc);
   sd_out(cmd);
   sd_out(arg0);
   sd_out(arg1);
@@ -147,6 +150,15 @@ sd_cmd
   if (0x48 == cmd) return sd_in(39);  // R7
   if (0x7a == cmd) return sd_in(39);  // R3
   return sd_in(7);  // R1
+}
+
+static unsigned long
+sd_cmd
+(char cmd, char arg0, char arg1, char arg2, char arg3, char crc)
+{
+  unsigned long rc = do_sd_cmd(cmd, arg0, arg1, arg2, arg3, crc);
+  debug("%X\n", rc);
+  return rc;
 }
 
 void
