@@ -32,15 +32,17 @@
 #if !defined(__config_h__)
 # define __config_h__
 
+#define TEST
+
 # if defined(TEST)
 #  define CPU_EMU_C
 #if !defined(USE_FLASH)
 #  define MON_SDC
-#  define CHK_SDC
+//#  define CHK_SDC
 #  define MON_FAT
 #endif //!defined(USE_FLASH)
 /* #  define MSG_MIN */
-/* #  define CLR_MEM */
+#  define CLR_MEM
 #  define CHK_MEM
 /* #  define CHK_MIN */
 #  define MONITOR

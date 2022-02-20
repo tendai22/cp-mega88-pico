@@ -68,6 +68,29 @@ con_putnum_u16
   } while (0 != d);
 }
 
+#if defined(AVR_GCC)
+void
+__con_puts
+(const char *s)
+{
+  while (0 != *s) con_putchar(*s++);
+}
+
+static void
+__crlf
+(void)
+{
+  con_puts("\r\n");
+}
+
+void
+__con_putsln
+(const char *s)
+{
+  __con_puts(s);
+  __crlf();
+}
+#else
 void
 con_puts
 (const char *s)
@@ -82,6 +105,8 @@ con_putsln
   con_puts(s);
   con_puts("\r\n");
 }
+#endif //defined(USE_AVR_PROGMEM)
+
 
 void
 con_puts2

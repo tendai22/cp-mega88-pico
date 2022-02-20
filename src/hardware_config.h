@@ -38,6 +38,7 @@
 #define AVR_GCC
 #define PLATFORM_AVR
 #define MCU_ATMEGA328
+#define USE_AVR_PROGMEM
 #endif
 
 #if 0
@@ -45,7 +46,7 @@
 #endif
 
 #define USE_FAT
-//#define USE_EXFAT
+#define USE_EXFAT
 //#define USE_XMODEM
 #define CPU_EMU_C
 //

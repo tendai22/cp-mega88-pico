@@ -198,19 +198,19 @@ static int
 fat_init_exfat
 (void)
 {
-  debug("exFAT: \n");
+  debug0("exFAT: \n");
   // Now we have exFAT
   unsigned long partition_offset = read4(64); // beginning of this exFAT volume
   unsigned long temp = read4(68);   // high 8-byte, maybe zero
   if (0 != temp) {
-    debug("exFAT partition_offset too large.\n");
+    debug0("exFAT partition_offset too large.\n");
     return -1;
   }
   //debug("partition_offset:  %ld\n", partition_offset);
   unsigned long totsec = read4(72);
   temp = read4(76);
   if (0 != temp) {
-    debug("exFAT total_sectors too big.\n");
+    debug0("exFAT total_sectors too big.\n");
     return -2;
   }
   unsigned long cluster_count = read4(92);
@@ -266,7 +266,7 @@ fat_init_exfat
     for (int i = 0; i < 32; ++i) {
       debug("%02X ", sdcard_read((off << 5) + i));
       if (i % 16 == 15) {
-        debug("\n");
+        debug0("\n");
       }
     }
   }
@@ -492,7 +492,7 @@ fat_next
         if (fat_debug & 4) {
           for (int i = 0; i < strlen(namestr); ++i)
             debug("[%02X]", namestr[i]);
-          debug("\n");
+          debug0("\n");
         }
         break;
       default:

@@ -35,5 +35,8 @@
 void sram_init(void);
 unsigned char sram_read(unsigned short addr);
 void sram_write(unsigned short addr, unsigned char data);
+#if defined(USE_DRAM)
+void dram_refresh(void);
+#endif //defined(USE_DRAM)
 
 #endif // !defined(__sram_h__)

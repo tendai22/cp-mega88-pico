@@ -34,6 +34,7 @@
 #include "sdcard.h"
 
 #include <avr/io.h>
+#include <util/delay.h>
 
 #define PORT PORTC
 #define DDR  DDRC
@@ -82,15 +83,27 @@ static unsigned char
 ccs;
 
 static void
+delay
+(void)
+{
+  int n = 5;
+//  while (n-- > 0)
+//    asm volatile("nop");
+}
+
+static void
 sd_out
 (char c)
 {
   int i;
   for (i = 7; i >= 0; i--) {
     PIN_LOW(P_CK);
+    delay();
     if (c & (1 << i)) PIN_HIGH(P_DI);
     else PIN_LOW(P_DI);
+    delay();
     PIN_HIGH(P_CK);
+    delay();
   }
   PIN_LOW(P_CK);
 }
@@ -99,12 +112,14 @@ static int
 sd_busy
 (char f)
 {
-  unsigned long timeout = 0xffff;
+  unsigned long timeout = 0xfff;
   for (; 0 != timeout; timeout--) {
     char c;
     PIN_HIGH(P_CK);
+    delay();
     c = PIN;
     PIN_LOW(P_CK);
+    delay();
     if ((f & P_DO) == (c & P_DO)) return 0;
   }
   return -1;
@@ -119,8 +134,10 @@ sd_in
   for (i = 0; i < n; i++) {
     char c;
     PIN_HIGH(P_CK);
+    delay();
     c = PIN;
     PIN_LOW(P_CK);
+    delay();
     rc <<= 1;
     if (c & P_DO) rc |= 1;
   }
@@ -144,7 +161,7 @@ do_sd_cmd
   sd_out(arg3);
   sd_out(crc);
   PIN_HIGH(P_DI);
-  if (sd_busy(0) < 0) return 0xffffffff;
+  if (sd_busy(0) < 0) return 0xfffffffe;
   // The first response bit was already consumed by sd_busy.
   // Read remaining response bites.
   if (0x48 == cmd) return sd_in(39);  // R7
@@ -171,7 +188,9 @@ sdcard_init
    */
   // Port Settings
   DDR |=  (P_CK | P_DI | P_CS);
-  PORT &= ~(P_CK | P_DI | P_CS);
+//  PORT &= ~(P_CK | P_DI | P_CS);
+  PORT |= (P_CK | P_DI | P_CS);
+
 
   DDR &= ~P_DO;
   PORT |= P_PU;
@@ -188,7 +207,9 @@ sdcard_open
   int i;
   for (i = 0; i < 80; i++) {
     PIN_HIGH(P_CK);
+    delay();
     PIN_LOW(P_CK);
+    delay();
   }
   unsigned long rc;
   // cmd0 - GO_IDLE_STATE (response R1)
@@ -204,6 +225,7 @@ sdcard_open
       rc = sd_cmd(0x41, 0x00, 0x00, 0x00, 0x00, 0x00);
       if (0 == rc) break;
       if (0xffffffff == rc) return -2;
+      _delay_ms(100);
     }
     if (0 != rc) return -3;
     ccs = 0;

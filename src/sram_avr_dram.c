@@ -29,41 +29,102 @@
  * DAMAGE.
  */
 
+#include "hardware_config.h"
 #include "sram.h"
+#include "debug.h"
+#include <avr/io.h>
 
-static unsigned char
-sram[16];
+// PB0: /OE - output
+// PB1: /RAS - output
+// PB2: /CASL - output
+// PB3: /WE - output
+// PD*: Address / Data - in/out
+
+#define P_OE DDB0
+#define P_RAS DDB1
+#define P_CAS DDB2
+#define P_WE DDB3
+#define P_PORT PORTD
+#define P_DDR DDRD
+#define P_IN PIND
+
+static void
+rascas
+(unsigned short addr)
+{
+  P_PORT = 0xff - ((addr>>8)&0xff);
+  PORTB &= ~_BV(P_RAS);
+  P_PORT = 0xff - ((addr)&0xff);
+  PORTB &= ~_BV(P_CAS);
+}
+
+static unsigned long ref_coutner = 0;
 
 unsigned char
 sram_read
 (unsigned short addr)
 {
-  return sram[addr];
+  unsigned char data;
+  P_DDR = 0xff; // output
+  rascas(addr);
+  P_DDR = 0;    // input
+//  asm volatile("nop");
+  PORTB &= ~_BV(P_OE);
+  asm volatile("nop");
+  asm volatile("nop");
+  data = P_IN;
+  PORTB |= (_BV(P_RAS) | _BV(P_CAS) | _BV(P_OE));
+  asm volatile("nop");
+//  dram_refresh();
+  return data;
 }
 
 void
 sram_write
 (unsigned short addr, unsigned char data)
 {
-  sram[addr] = data;
+  P_DDR = 0xff; // output
+  rascas(addr);
+  P_PORT = data;
+//  asm volatile("nop");
+  PORTB &= ~_BV(P_WE);
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  PORTB |= _BV(P_WE);
+  asm volatile("nop");
+  PORTB |= (_BV(P_RAS) | _BV(P_CAS) | _BV(P_WE));
+  asm volatile("nop");
+//  dram_refresh();
+  return;
 }
-
-#include "sram.h"
-
-#include <avr/io.h>
 
 void
 sram_init
 (void)
 {
-  // PB0: /W - output
-  // PB1: E2 - output
-  // PB2: A16 - output
-  // PB4: CLK for FF on Address Low - output
-  // PB5: CLK for FF on Address High - output
-  // PD*: Address / Data - in/out
-  DDRB  |=  (_BV(DDB0) | _BV(DDB1) | _BV(DDB2) | _BV(DDB4) | _BV(DDB5));
-  PORTB &=  ~(_BV(DDB0) | _BV(DDB1) | _BV(DDB2) | _BV(DDB4) | _BV(DDB5));
-  DDRD  = 0xff;
-  PORTD = 0;
+  DDRB  |=  (_BV(P_OE) | _BV(P_RAS) | _BV(P_CAS) | _BV(P_WE));  // output
+  PORTB |=  (_BV(P_OE) | _BV(P_RAS) | _BV(P_CAS) | _BV(P_WE));  // all high
+  P_DDR = 0xff;   // output
+  P_PORT = 0;
+}
+
+void
+dram_refresh
+(void)
+{
+  static unsigned long n = 0;
+  if (n++ < 10000) return;
+  n = 0;
+  // CAS-before-RAS refresh
+  for (int i = 0; i < 512; ++i) {
+    PORTB &= ~_BV(P_CAS);
+    asm volatile("nop");
+    PORTB &= ~_BV(P_RAS);
+    asm volatile("nop");
+    PORTB |= _BV(P_CAS);
+    asm volatile("nop");
+    PORTB |= _BV(P_RAS);
+    asm volatile("nop");
+  }
 }

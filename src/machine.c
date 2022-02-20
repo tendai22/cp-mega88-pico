@@ -276,7 +276,7 @@ mount
   char buf[32];
   buf[0] = '\0';
   con_puts("A: ");
-  con_puts(name);
+  con_puts_v(name);
   fat_rewind();
   for (;;) {
     if (fat_next() < 0) break;
@@ -289,7 +289,7 @@ mount
     // found an entry
     fat_open();
     con_puts(" ");
-    con_puts(buf);
+    con_puts_v(buf);
     con_putsln(" ok");
     sd_fat = 1;
     eeprom_write(16, 0);
@@ -324,6 +324,7 @@ prompt
     int c;
     do {
       c = con_getchar();
+      dram_refresh();
     } while (c < 0);
     if ((0x08 == c) || (0x7f == c)) {
       if (0 != size) {
@@ -339,7 +340,7 @@ prompt
     } else if ((0 == size) && (0x10 == c)) {
       char *p;
       for (p = buffer; 0 != *p; p++) size++;
-      con_puts(buffer);
+      con_puts_v(buffer);
     } else {
       if (MAX_PROMPT != size) {
         buffer[size++] = c;
@@ -469,7 +470,7 @@ prompt
       if (15 == (i & 15)) {
         buf[16] = 0;
         con_puts(": ");
-        con_puts(buf);
+        con_puts_v(buf);
         con_putsln(" ");
       }
     }
@@ -538,7 +539,7 @@ prompt
 #  endif // defined(USE_EXFAT)
 # endif // !defined(MSG_MIN)
       con_putchar(' ');
-      con_puts(name);
+      con_puts_v(name);
       con_putsln("");
     }
     return;
@@ -738,18 +739,18 @@ mem_chk
     if (0 == test) {
       sram_write(addr, 0xaa);
       c = sram_read(addr);
-      if (0xaa != c) err |= 1;
+      if (0xaa != c) { debug("[%04X,%02X]", addr, c); err |= 1; }
 # if !defined(CHK_MIN)
       sram_write(addr, 0x55);
       c = sram_read(addr);
       if (0x55 != c) err |= 2;
 # endif // !defined(CHK_MIN)
-      if (0 == (addr & 1)) sram_write(addr, addr);
-      else sram_write(addr, addr >> 8);
+      if (0 == (addr & 1)) sram_write(addr, addr&0xff);
+      else sram_write(addr, (addr >> 8)&0xff);
 # if !defined(CHK_MIN)
       c = sram_read(addr);
-      if ((0 == (addr & 1)) & ((addr & 0xff) != c)) err |= 4;
-      if ((0 != (addr & 1)) & ((addr >> 8) != c)) err |= 4;
+      if ((0 == (addr & 1)) & ((addr & 0xff) != c)) { debug("[%04X,%02X]", addr, c); err |= 4; }
+      if ((0 != (addr & 1)) & ((addr >> 8) != c)) { debug("[%04X,%02X]", addr, c); err |= 4; }
 # endif // !defined(CHK_MIN)
     } else {
       c = sram_read(addr);
@@ -1073,7 +1074,6 @@ machine_boot
   con_putsln("\r\nCP/Mega88");
 #else // defined(MSG_MIN)
   con_putsln("\r\nbooting CP/Mega88 done.");
-  debug0("\r\ndo printf\n");
 #if 0
   int c;
   while (1) {

@@ -38,7 +38,15 @@ int con_getchar(void);
 int con_peek(void);
 void con_puthex(unsigned char c);
 void con_putnum_u16(unsigned short n, int digit);
+#if defined(AVR_GCC)
+#include <avr/pgmspace.h> 
+#define con_puts(s) do{ strcpy_P(__pbuf, PSTR(s)); __con_puts(__pbuf); }while(0)
+#define con_putsln(s) do{ strcpy_P(__pbuf, PSTR(s)); __con_putsln(__pbuf); }while(0)
+#define con_puts_v(s) __con_puts(s)
+#define con_putsln_v(s) __con_putsln(s)
+#else
 void con_puts(const char *s);
 void con_putsln(const char *s);
+#endif //defined(USE_AVR_PROGMEM)
 
 #endif // !defined(__con_h__)
