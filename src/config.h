@@ -32,7 +32,7 @@
 #if !defined(__config_h__)
 # define __config_h__
 
-#define TEST
+//#define TEST
 
 # if defined(TEST)
 #  define CPU_EMU_C

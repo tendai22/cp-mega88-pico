@@ -774,7 +774,7 @@ mem_chk
       else con_puthex(c);
       con_putsln(")");
 # endif // defined(CHK_MIN)
-      return;
+//      return;
     }
     if (0xfff == (addr & 0xfff)) {
 # if defined(MSG_MIN)

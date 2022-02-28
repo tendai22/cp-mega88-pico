@@ -52,9 +52,9 @@ static void
 rascas
 (unsigned short addr)
 {
-  P_PORT = 0xff - ((addr>>8)&0xff);
+  P_PORT = ((addr)&0xff);
   PORTB &= ~_BV(P_RAS);
-  P_PORT = 0xff - ((addr)&0xff);
+  P_PORT = ((addr>>8)&0xff);
   PORTB &= ~_BV(P_CAS);
 }
 
@@ -66,16 +66,18 @@ sram_read
 {
   unsigned char data;
   P_DDR = 0xff; // output
-  rascas(addr);
+  P_PORT = ((addr)&0xff);
+  PORTB &= ~_BV(P_RAS);
+  P_PORT = ((addr>>8)&0xff);
+  PORTB &= ~_BV(P_CAS);
+  P_PORT = 0xf0;  // some magic
+  asm volatile("nop");
   P_DDR = 0;    // input
-//  asm volatile("nop");
   PORTB &= ~_BV(P_OE);
   asm volatile("nop");
   asm volatile("nop");
   data = P_IN;
   PORTB |= (_BV(P_RAS) | _BV(P_CAS) | _BV(P_OE));
-  asm volatile("nop");
-//  dram_refresh();
   return data;
 }
 
@@ -84,19 +86,14 @@ sram_write
 (unsigned short addr, unsigned char data)
 {
   P_DDR = 0xff; // output
-  rascas(addr);
+  P_PORT = ((addr)&0xff);
+  PORTB &= ~_BV(P_RAS);
+  P_PORT = ((addr>>8)&0xff);
+  PORTB &= ~_BV(P_CAS);
   P_PORT = data;
-//  asm volatile("nop");
   PORTB &= ~_BV(P_WE);
-  asm volatile("nop");
-  asm volatile("nop");
-  asm volatile("nop");
   PORTB |= _BV(P_WE);
-  asm volatile("nop");
   PORTB |= (_BV(P_RAS) | _BV(P_CAS) | _BV(P_WE));
-  asm volatile("nop");
-//  dram_refresh();
-  return;
 }
 
 void
@@ -107,6 +104,7 @@ sram_init
   PORTB |=  (_BV(P_OE) | _BV(P_RAS) | _BV(P_CAS) | _BV(P_WE));  // all high
   P_DDR = 0xff;   // output
   P_PORT = 0;
+//  MCUCR |= (1<<4);  // Pull-up disable
 }
 
 void
