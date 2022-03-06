@@ -34,10 +34,22 @@
 /////////////////////////////////////
 // arduino:avr:uno
 //
+#if 0
 #define AVR_GCC
 #define PLATFORM_AVR
 #define MCU_ATMEGA328
+#define PBUF_SIZE 120
+#endif //
 
+/////////////////////////////////////
+// MPLAB X with PIC18F47Q43
+
+#if 1
+#define PIC18F
+#endif
+
+/////////////////////////////////////
+// generic options
 #define USE_FAT
 //#define USE_EXFAT
 //#define USE_XMODEM

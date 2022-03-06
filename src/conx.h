@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Takashi TOYOSHIMA <toyoshim@gmail.com>
+ * Copyright (c) 2010, Takashi TOYOSHIMA <toyoshim@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,17 +29,16 @@
  * DAMAGE.
  */
 
-#if !defined(__machine_h__)
-# define __machine_h__
+#if !defined(__con_h__)
+# define __con_h__
 
-#if defined (__cplusplus)
-extern "C" {
-#endif // defined (__cplusplus)
+void con_init(void);
+void con_putchar(unsigned char c);
+int con_getchar(void);
+int con_peek(void);
+void con_puthex(unsigned char c);
+void con_putnum_u16(unsigned short n, int digit);
+void con_puts(const char *s);
+void con_putsln(const char *s);
 
-int machine_boot(void);
-
-#if defined (__cplusplus)
-};
-#endif // defined (__cplusplus)
-
-#endif // !defined(__machine_h__)
+#endif // !defined(__con_h__)

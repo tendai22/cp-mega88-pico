@@ -1,4 +1,7 @@
+nbproject/configurations.xml
+nbproject/project.xml
 nbproject/
+build/
 a.c
 a.out
 disks/

@@ -29,17 +29,27 @@
  * DAMAGE.
  */
 
-#if !defined(__machine_h__)
-# define __machine_h__
+#include "eeprom.h"
 
-#if defined (__cplusplus)
-extern "C" {
-#endif // defined (__cplusplus)
+#include <avr/io.h>
 
-int machine_boot(void);
+void
+eeprom_write
+(unsigned short addr, unsigned char data)
+{
+  while (0 != (EECR & _BV(EEPE)));
+  EEAR = addr;
+  EEDR = data;
+  EECR |= _BV(EEMPE);
+  EECR |= _BV(EEPE);
+}
 
-#if defined (__cplusplus)
-};
-#endif // defined (__cplusplus)
-
-#endif // !defined(__machine_h__)
+unsigned char
+eeprom_read
+(unsigned short addr)
+{
+  while (0 != (EECR & _BV(EEPE)));
+  EEAR = addr;
+  EECR |= _BV(EERE);
+  return EEDR;
+}

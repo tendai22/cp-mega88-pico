@@ -59,7 +59,7 @@
 #  define MONITOR
 /* #  define  MON_MEM */
 #if !defined(USE_FLASH)
-#  define  MON_SDC
+//#  define  MON_SDC
 #  define  MON_FAT
 #endif //!defined(USE_FLASH)
 #  define  MON_CON

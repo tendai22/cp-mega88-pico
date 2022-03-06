@@ -29,7 +29,7 @@
  * DAMAGE.
  */
 
-#include "con.h"
+#include "conx.h"
 
 #include <xc.h>
 #include <stdio.h>
@@ -46,7 +46,7 @@ sleep
 // UART3 Transmit
 void
 con_putchar
-(char c)
+(unsigned char c)
 {
     while(!U3TXIF); // Tx interrupt flag not set
     U3TXB = c;
@@ -82,6 +82,23 @@ getchar_timeout_us
     return -1;
 }
 
+//
+// printf workhorse function in XC8 compiler/library
+//
+void
+putch
+(unsigned char c)
+{
+    con_putchar(c);
+}
+
+char
+getch
+(void)
+{
+    return con_getchar(); 
+}
+
 void
 con_init
 (void)
@@ -108,36 +125,5 @@ con_init
      
     U3ON = 1; // Serial port enable
      
-    printf("hello, world\r\n");
+//    printf("hello, world\r\n");
 }
-
-#if 0
-// for peeking where no peek functions we have.
-static int unget_char = -1;
-
-int
-con_getchar
-(void)
-{
-  int c;
-  if ((c = unget_char) != -1) {
-    unget_char = -1;
-    return c;
-  }
-  return ((c = getchar_timeout_us(10)) != PICO_ERROR_TIMEOUT) ? c : -1;
-}
-
-int
-con_peek
-(void)
-{
-  int c;
-  if (unget_char != -1)
-    return 1;
-  if ((c = getchar_timeout_us(10)) != PICO_ERROR_TIMEOUT) {
-    unget_char = c;
-    return 1;
-  }
-  return 0;
-}
-#endif //0

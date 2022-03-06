@@ -35,10 +35,13 @@
 #include "hardware_config.h"
 
 #include <stdio.h>
+//
+// common parameters
+#define PBUF_SIZE 63
+
 #if defined(AVR_GCC)
 #include <avr/pgmspace.h>
 extern char __pbuf[];
-#define PBUF_SIZE 63
 #define X(str) strncpy_P(__pbuf, PSTR(str), PBUF_SIZE)
 #define debug(fmt, ...) printf(X(fmt), __VA_ARGS__)
 #define debug0(fmt) printf(X(fmt))

@@ -94,6 +94,8 @@
 
 
 #include "machine.h"
+#include "debug.h"
+#include "conx.h"
 
 void
 platform_init
@@ -107,16 +109,18 @@ main
 (int argc, char **argv)
 {
     platform_init();
+#if 1
     con_init();
-    TRISB7 = 0;
+    printf("hello, world\r\n");
+    TRISB5 = 0;
     LATB5 = 0;
     while (1) {
         LATB5 ^= 1;
         __delay_ms(500);
     }
-    //return;
-
-    //machine_boot();
+#else
+    machine_boot();
+#endif
     return 0;
 }
 

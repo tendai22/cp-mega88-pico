@@ -29,17 +29,22 @@
  * DAMAGE.
  */
 
-#if !defined(__machine_h__)
-# define __machine_h__
+#include "sram.h"
 
-#if defined (__cplusplus)
-extern "C" {
-#endif // defined (__cplusplus)
+#include <avr/io.h>
 
-int machine_boot(void);
-
-#if defined (__cplusplus)
-};
-#endif // defined (__cplusplus)
-
-#endif // !defined(__machine_h__)
+void
+sram_init
+(void)
+{
+  // PB0: /W - output
+  // PB1: E2 - output
+  // PB2: A16 - output
+  // PB4: CLK for FF on Address Low - output
+  // PB5: CLK for FF on Address High - output
+  // PD*: Address / Data - in/out
+  DDRB  |=  (_BV(DDB0) | _BV(DDB1) | _BV(DDB2) | _BV(DDB4) | _BV(DDB5));
+  PORTB &=  ~(_BV(DDB0) | _BV(DDB1) | _BV(DDB2) | _BV(DDB4) | _BV(DDB5));
+  DDRD  = 0xff;
+  PORTD = 0;
+}

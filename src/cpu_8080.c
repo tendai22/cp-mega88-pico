@@ -70,7 +70,7 @@ static unsigned short
 get_hl
 (cpu_8080_work *work)
 {
-  return (work->h << 8) | work->l;
+  return (unsigned short)((work->h << 8) | work->l);
 }
 
 static unsigned char
@@ -194,7 +194,7 @@ ret
 {
   unsigned char pcl = work->load_8(work->sp++);
   unsigned char pch = work->load_8(work->sp++);
-  work->pc = (pch << 8) | pcl;
+  work->pc = (unsigned short)((pch << 8) | pcl);
 }
 
 static void
@@ -203,7 +203,7 @@ jmp
 {
   unsigned char pcl = work->load_8(work->pc++);
   unsigned char pch = work->load_8(work->pc++);
-  work->pc = (pch << 8) | pcl;
+  work->pc = (unsigned short)(((int)pch << 8) | pcl);
 }
 
 static void
@@ -214,7 +214,7 @@ call
   unsigned char pch = work->load_8(work->pc++);
   work->store_8(--work->sp, work->pc >> 8);
   work->store_8(--work->sp, work->pc & 0xff);
-  work->pc = (pch << 8) | pcl;
+  work->pc = (unsigned short)(((int)pch << 8) | pcl);
 }
 
 static void
@@ -257,10 +257,10 @@ cpu_8080_step
     work->b = work->load_8(work->pc++);
     break;
   case 0x02:	// STAX B
-    work->store_8((work->b << 8) | work->c, work->a);
+    work->store_8((unsigned short)((work->b << 8) | work->c), work->a);
     break;
   case 0x03:	// INX B
-    work_16 = (work->b << 8) | work->c;
+    work_16 = (unsigned short)((work->b << 8) | work->c);
     work_16++;
     work->b = work_16 >> 8;
     work->c = work_16 & 0xff;
@@ -278,16 +278,16 @@ cpu_8080_step
     work_8 = work->a >> 7;
     work->f &= ~F_CY;
     work->f |= work_8;
-    work->a = (work->a << 1) | work_8;
+    work->a = (unsigned char)((work->a << 1) | work_8);
     break;
   case 0x09:	// DAD B
-    dad(work, (work->b << 8) | work->c);
+    dad(work, (unsigned short)((work->b << 8) | work->c));
     break;
   case 0x0a:	// LDAX B
-    work->a = work->load_8((work->b << 8) | work->c);
+    work->a = work->load_8((unsigned short)((work->b << 8) | work->c));
     break;
   case 0x0b:	// DCX B
-    work_16 = (work->b << 8) | work->c;
+    work_16 = (unsigned short)((work->b << 8) | work->c);
     work_16--;
     work->b = work_16 >> 8;
     work->c = work_16 & 0xff;
@@ -305,17 +305,17 @@ cpu_8080_step
     work_8 = work->a & 0x01;
     work->f &= ~F_CY;
     work->f |= work_8;
-    work->a = (work_8 << 7) | (work->a >> 1);
+    work->a = (unsigned char)((work_8 << 7) | (work->a >> 1));
     break;
   case 0x11:	// LXI D
     work->e = work->load_8(work->pc++);
     work->d = work->load_8(work->pc++);
     break;
   case 0x12:	// STAX D
-    work->store_8((work->d << 8) | work->e, work->a);
+    work->store_8((unsigned short)((work->d << 8) | work->e), work->a);
     break;
   case 0x13:	// INX D
-    work_16 = (work->d << 8) | work->e;
+    work_16 = (unsigned short)((work->d << 8) | work->e);
     work_16++;
     work->d = work_16 >> 8;
     work->e = work_16 & 0xff;
@@ -333,16 +333,16 @@ cpu_8080_step
     work_8 = work->f & F_CY;
     work->f &= ~F_CY;
     work->f |= work->a >> 7;
-    work->a = (work->a << 1) | work_8;
+    work->a = (unsigned char)((work->a << 1) | work_8);
     break;
   case 0x19:	// DAD D
-    dad(work, (work->d << 8) | work->e);
+    dad(work, (unsigned short)((work->d << 8) | work->e));
     break;
   case 0x1a:	// LDAX D
-    work->a = work->load_8((work->d << 8) | work->e);
+    work->a = work->load_8((unsigned char)((work->d << 8) | work->e));
     break;
   case 0x1b:	// DCX D
-    work_16 = (work->d << 8) | work->e;
+    work_16 = (unsigned short)((work->d << 8) | work->e);
     work_16--;
     work->d = work_16 >> 8;
     work->e = work_16 & 0xff;
@@ -360,7 +360,7 @@ cpu_8080_step
     work_8 = work->f & F_CY;
     work->f &= ~F_CY;
     work->f |= work->a & F_CY;
-    work->a = (work_8 << 7) | (work->a >> 1);
+    work->a = (unsigned char)((work_8 << 7) | (work->a >> 1));
     break;
   case 0x21:	// LXI H
     work->l = work->load_8(work->pc++);
@@ -368,7 +368,7 @@ cpu_8080_step
     break;
   case 0x22:	// SHLD
     work_16 = work->load_8(work->pc++);
-    work_16 |= work->load_8(work->pc++) << 8;
+    work_16 |= (unsigned short)((int)(work->load_8(work->pc++)) << 8);
     work->store_8(work_16++, work->l);
     work->store_8(work_16, work->h);
     break;
@@ -402,7 +402,7 @@ cpu_8080_step
     } else {
       work->f &= ~F_CY;
     }
-    work->a = (work_8 << 4) + work->a;
+    work->a = (unsigned char)((work_8 << 4) + work->a);
     work->f &= ~(F_Z | F_S | F_P);
     flag_zsp(work, work->a);
     break;
@@ -411,7 +411,7 @@ cpu_8080_step
     break;
   case 0x2a:	// LHLD
     work_16 = work->load_8(work->pc++);
-    work_16 |= work->load_8(work->pc++) << 8;
+    work_16 |= (unsigned short)((int)(work->load_8(work->pc++)) << 8);
     work->l = work->load_8(work_16++);
     work->h = work->load_8(work_16);
     break;
@@ -435,11 +435,11 @@ cpu_8080_step
     break;
   case 0x31:	// LXI SP
     work_8 = work->load_8(work->pc++);
-    work->sp = (work->load_8(work->pc++) << 8) | work_8;
+    work->sp = (unsigned short)((work->load_8(work->pc++) << 8) | work_8);
     break;
   case 0x32:	// STA
     work_8 = work->load_8(work->pc++);
-    work_16 = (work->load_8(work->pc++) << 8) | work_8;
+    work_16 = (unsigned short)((work->load_8(work->pc++) << 8) | work_8);
     work->store_8(work_16, work->a);
     break;
   case 0x33:	// INX SP
@@ -469,7 +469,7 @@ cpu_8080_step
     break;
   case 0x3a:	// LDA
     work_8 = work->load_8(work->pc++);
-    work_16 = (work->load_8(work->pc++) << 8) | work_8;
+    work_16 = (unsigned short)((work->load_8(work->pc++) << 8) | work_8);
     work->a = work->load_8(work_16);
     break;
   case 0x3b:	// DCX SP
