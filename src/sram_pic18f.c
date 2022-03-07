@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Norihiro KUMAGAI <tendai22plus@gmail.com>
+ * Copyright (c) 2016, Takashi TOYOSHIMA <toyoshim@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,26 +29,22 @@
  * DAMAGE.
  */
 
-#if !defined(__DEBUG_H)
-#define __DEBUG_H
+#include "sram.h"
 
-#include "hardware_config.h"
+#include <avr/io.h>
 
-#include <stdio.h>
-//
-// common parameters
-#define PBUF_SIZE 63
-
-#if defined(AVR_GCC)
-#include <avr/pgmspace.h>
-extern char __pbuf[];
-#define PBUF_SIZE 100
-#define debug(fmt, ...) do{ sprintf_P(__pbuf, PSTR(fmt), __VA_ARGS__); con_puts2(__pbuf); } while(0)
-#define debug0(fmt) do{ sprintf_P(__pbuf, PSTR(fmt)); con_puts2(__pbuf); } while(0)
-#else
-#define X(str) str
-#define debug(fmt, ...) printf(fmt, __VA_ARGS__)
-#define debug0(fmt) printf(fmt)
-#endif //defined(AVR_GCC)
-
-#endif //!defined(__DEBUG_H)
+void
+sram_init
+(void)
+{
+  // PB0: /W - output
+  // PB1: E2 - output
+  // PB2: A16 - output
+  // PB4: CLK for FF on Address Low - output
+  // PB5: CLK for FF on Address High - output
+  // PD*: Address / Data - in/out
+  DDRB  |=  (_BV(DDB0) | _BV(DDB1) | _BV(DDB2) | _BV(DDB4) | _BV(DDB5));
+  PORTB &=  ~(_BV(DDB0) | _BV(DDB1) | _BV(DDB2) | _BV(DDB4) | _BV(DDB5));
+  DDRD  = 0xff;
+  PORTD = 0;
+}

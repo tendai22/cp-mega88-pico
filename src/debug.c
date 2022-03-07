@@ -29,6 +29,7 @@
  * DAMAGE.
  */
 
+#include "hardware_config.h"
 #include "debug.h"
 
 char __pbuf[PBUF_SIZE+1];

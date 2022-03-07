@@ -39,17 +39,23 @@
 #include "flash.h"
 
 #if !defined(TEST)
-#if !defined(MCU_PICO)
+#if defined(AVR_GCC)
 # include <avr/io.h>
-#else
+#endif //AVG_GCC
+
+#if defined(MCU_PICO)
 # include <inttypes.h>
 #endif // !defined(USE_PICO)
+
+#if defined(PIC18F)
+#include <inttypes.h>
+#endif //defined(PIC18F)
 #endif // !defined(TEST)
 #if defined(EFI)
 # include <efi/efi.h>
 # include <efi/efilib.h>
 #endif // defined(EFI)
-#include "con.h"
+#include "conx.h"
 #include "config.h"
 #include "eeprom.h"
 #include "fat.h"
@@ -119,7 +125,7 @@ boot
 #else // if defined(CPU_EMU_A)
   i8080_reset();
 #endif // defined(CPU_EMU_C)
-  int i, j;
+  unsigned int i, j;
   for (i = 0; i < 13; i++) {
     disk_read(i << 9);
     unsigned short addr = 0xe380 + i * 512;
@@ -200,7 +206,7 @@ boot
   unsigned char op = sram_read(work.pc);
   con_puts("pc: ");
   con_puthex(work.pc >> 8);
-  con_puthex(work.pc);
+  con_puthex((unsigned char)(work.pc));
   con_puts(" (");
   con_puthex(op);
   con_putsln(")");
@@ -243,7 +249,7 @@ unsigned long
 getnum
 (char *s)
 {
-  long rc = 0;
+  unsigned long rc = 0;
   if (0 == strndcmp(s, "0x", 2, 0)) {
     s += 2;
     for (;;) {
@@ -343,8 +349,8 @@ prompt
       con_puts_v(buffer);
     } else {
       if (MAX_PROMPT != size) {
-        buffer[size++] = c;
-        con_putchar(c);
+        buffer[size++] = (char)c;
+        con_putchar((unsigned char)c);
       }
     }
   }
@@ -447,7 +453,7 @@ prompt
 # if !defined(MSG_MIN)
     con_putsln("<sdcard open>");
 # endif // !defined(MSG_MIN)
-    char rc = sdcard_open();
+    int rc = sdcard_open();
     if (rc >= 0) con_putsln(" detect");
     else {
       con_puts(" not detect(");
@@ -553,7 +559,7 @@ prompt
     }
     fat_rewind();
     char name[32];
-    name[0] == '\0';
+    name[0] = '\0';
     for (;;) {
       if (fat_next() < 0) break;
       char attr = fat_attr();
@@ -745,8 +751,8 @@ mem_chk
       c = sram_read(addr);
       if (0x55 != c) err |= 2;
 # endif // !defined(CHK_MIN)
-      if (0 == (addr & 1)) sram_write(addr, addr&0xff);
-      else sram_write(addr, (addr >> 8)&0xff);
+      if (0 == (addr & 1)) sram_write(addr, (unsigned char)addr);
+      else sram_write(addr, addr >> 8);
 # if !defined(CHK_MIN)
       c = sram_read(addr);
       if ((0 == (addr & 1)) & ((addr & 0xff) != c)) { debug("[%04X,%02X]", addr, c); err |= 4; }
@@ -765,7 +771,7 @@ mem_chk
       else con_puts("address failed at 0x");
 # endif // defined(CHK_MIN)
       con_puthex(addr >> 8);
-      con_puthex(addr);
+      con_puthex((unsigned char)addr);
 # if defined(CHK_MIN)
       con_putsln("");
 # else // defined(CHK_MIN)
@@ -992,7 +998,7 @@ out
       unsigned short off = pos & 0x1ff;
       disk_read(blk);
       unsigned short i;
-      unsigned short addr = (dma_hi << 8) | dma_lo;
+      unsigned short addr = (unsigned short)((dma_hi << 8) | dma_lo);
       if (0 == val) {
         for (i = 0; i < 128; i++) sram_write(addr + i, sdcard_read(off + i));
         disk_err = 0;
@@ -1099,7 +1105,7 @@ machine_boot
 #if !defined(MSG_MIN)
   else {
     con_puts("SDC: err(");
-    con_puthex(-rc);
+    con_puthex((unsigned char)-rc);
     con_putsln(")");
     goto skip_fat;
   }
@@ -1110,14 +1116,14 @@ machine_boot
     con_puts("FAT: ");
     if ((4 == rc) || (6 == rc)) con_puts("FAT16");
     else if (0xb == rc) con_puts("FAT32");
-    else con_puthex(rc);
+    else con_puthex((unsigned char)rc);
     con_putsln("");
     sd_fat = 1;
     fs_desc = rc;
   } else {
 #if !defined(MSG_MIN)
     con_puts("FAT: ");
-    con_puthex(-rc);
+    con_puthex((unsigned char)-rc);
     con_putsln("");
     sd_fat = 0;
 #endif // !defined(MSG_MIN);
@@ -1132,7 +1138,7 @@ skip_fat:
 #endif // defined(CPU_EMU_C)
   if (0x88 != eeprom_read(0)) {
     con_putsln("EEPROM: init");
-    int i;
+    unsigned int i;
     for (i = 0; i < 256; i++) eeprom_write(i, 0);
     eeprom_write(0, 0x88);
   } else {

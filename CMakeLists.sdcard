@@ -25,6 +25,7 @@ add_executable(cpmega88
         ./src/sram_pico.c
         ./src/sdcard_base.c
         ./src/sdcard_pico.c
+        ./src/spi_pico.c
         ./src/fat.c
         )
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Norihiro KUMAGAI <tendai22plus@gmail.com>
+ * Copyright (c) 2016, Takashi TOYOSHIMA <toyoshim@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,26 +29,27 @@
  * DAMAGE.
  */
 
-#if !defined(__DEBUG_H)
-#define __DEBUG_H
+#include "eeprom.h"
 
-#include "hardware_config.h"
+#include <avr/io.h>
 
-#include <stdio.h>
-//
-// common parameters
-#define PBUF_SIZE 63
+void
+eeprom_write
+(unsigned short addr, unsigned char data)
+{
+  while (0 != (EECR & _BV(EEPE)));
+  EEAR = addr;
+  EEDR = data;
+  EECR |= _BV(EEMPE);
+  EECR |= _BV(EEPE);
+}
 
-#if defined(AVR_GCC)
-#include <avr/pgmspace.h>
-extern char __pbuf[];
-#define PBUF_SIZE 100
-#define debug(fmt, ...) do{ sprintf_P(__pbuf, PSTR(fmt), __VA_ARGS__); con_puts2(__pbuf); } while(0)
-#define debug0(fmt) do{ sprintf_P(__pbuf, PSTR(fmt)); con_puts2(__pbuf); } while(0)
-#else
-#define X(str) str
-#define debug(fmt, ...) printf(fmt, __VA_ARGS__)
-#define debug0(fmt) printf(fmt)
-#endif //defined(AVR_GCC)
-
-#endif //!defined(__DEBUG_H)
+unsigned char
+eeprom_read
+(unsigned short addr)
+{
+  while (0 != (EECR & _BV(EEPE)));
+  EEAR = addr;
+  EECR |= _BV(EERE);
+  return EEDR;
+}

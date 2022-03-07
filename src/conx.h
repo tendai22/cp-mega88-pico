@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Norihiro KUMAGAI <tendai22plus@gmail.com>
+ * Copyright (c) 2010, Takashi TOYOSHIMA <toyoshim@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,26 +29,16 @@
  * DAMAGE.
  */
 
-#if !defined(__DEBUG_H)
-#define __DEBUG_H
+#if !defined(__con_h__)
+# define __con_h__
 
-#include "hardware_config.h"
+void con_init(void);
+void con_putchar(unsigned char c);
+int con_getchar(void);
+int con_peek(void);
+void con_puthex(unsigned char c);
+void con_putnum_u16(unsigned short n, int digit);
+void con_puts(const char *s);
+void con_putsln(const char *s);
 
-#include <stdio.h>
-//
-// common parameters
-#define PBUF_SIZE 63
-
-#if defined(AVR_GCC)
-#include <avr/pgmspace.h>
-extern char __pbuf[];
-#define PBUF_SIZE 100
-#define debug(fmt, ...) do{ sprintf_P(__pbuf, PSTR(fmt), __VA_ARGS__); con_puts2(__pbuf); } while(0)
-#define debug0(fmt) do{ sprintf_P(__pbuf, PSTR(fmt)); con_puts2(__pbuf); } while(0)
-#else
-#define X(str) str
-#define debug(fmt, ...) printf(fmt, __VA_ARGS__)
-#define debug0(fmt) printf(fmt)
-#endif //defined(AVR_GCC)
-
-#endif //!defined(__DEBUG_H)
+#endif // !defined(__con_h__)

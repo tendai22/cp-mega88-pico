@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Norihiro KUMAGAI <tendai22plus@gmail.com>
+ * Copyright (c) 2021, Norihiro KUMAGAI <tendai22plus@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,26 +29,25 @@
  * DAMAGE.
  */
 
-#if !defined(__DEBUG_H)
-#define __DEBUG_H
+#if !defined(__spi_h__)
+#define __spi_h__
 
-#include "hardware_config.h"
-
-#include <stdio.h>
 //
-// common parameters
-#define PBUF_SIZE 63
+// pico specific definition
+//
+void do_spi_init(void);
+void reset_clk(void);
+unsigned long sd_in(void);
+void sd_out(const unsigned char c);
+int sd_wait_resp(unsigned char value, long counter, int bitnum);
+void cs_select();
+void cs_deselect();
+long int measured_time;
 
-#if defined(AVR_GCC)
-#include <avr/pgmspace.h>
-extern char __pbuf[];
-#define PBUF_SIZE 100
-#define debug(fmt, ...) do{ sprintf_P(__pbuf, PSTR(fmt), __VA_ARGS__); con_puts2(__pbuf); } while(0)
-#define debug0(fmt) do{ sprintf_P(__pbuf, PSTR(fmt)); con_puts2(__pbuf); } while(0)
-#else
-#define X(str) str
-#define debug(fmt, ...) printf(fmt, __VA_ARGS__)
-#define debug0(fmt) printf(fmt)
-#endif //defined(AVR_GCC)
+//
+// 1ms counter value for sp_wait_resp 2nd argument
+// clock 2ms, 21.1us 8clock
+// clock 5MHz 1.2us 8clock
+#define ONE_MS_COUNT 900
 
-#endif //!defined(__DEBUG_H)
+#endif //!defined(__spi_h__)
