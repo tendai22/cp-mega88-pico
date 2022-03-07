@@ -1,0 +1,1 @@
+C:\Users\tenda\AppData\Local\Arduino15\packages\arduino\tools\avrdude\6.3.0-arduino17/bin/avrdude -CC:\Users\tenda\AppData\Local\Arduino15\packages\arduino\tools\avrdude\6.3.0-arduino17/etc/avrdude.conf -v -patmega328p -cstk500v1 -PCOM4 -b19200 -Uflash:w:D:\tendai22plus\Desktop\src.ino.hex:i 
