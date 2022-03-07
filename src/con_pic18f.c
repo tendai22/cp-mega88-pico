@@ -96,7 +96,7 @@ char
 getch
 (void)
 {
-    return con_getchar(); 
+    return (char)con_getchar(); 
 }
 
 void

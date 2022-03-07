@@ -40,5 +40,6 @@ void con_puthex(unsigned char c);
 void con_putnum_u16(unsigned short n, int digit);
 void con_puts(const char *s);
 void con_putsln(const char *s);
+#define X(s) (s)
 
 #endif // !defined(__con_h__)

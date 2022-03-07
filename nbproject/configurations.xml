@@ -20,6 +20,15 @@
       <itemPath>src/cpu_8080.c</itemPath>
       <itemPath>src/debug.c</itemPath>
       <itemPath>src/machine.c</itemPath>
+      <itemPath>src/fat.c</itemPath>
+      <itemPath>src/eeprom_base.c</itemPath>
+      <itemPath>src/io_base.c</itemPath>
+      <itemPath>src/sram_pic18f.c</itemPath>
+      <itemPath>src/led_pic18f.c</itemPath>
+      <itemPath>src/sdcard_pic18f.c</itemPath>
+      <itemPath>src/sdcard_base.c</itemPath>
+      <itemPath>src/con_base.c</itemPath>
+      <itemPath>src/eeprom_pic18f.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"

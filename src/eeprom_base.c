@@ -36,7 +36,7 @@ eeprom_write_string
 (unsigned short addr, char *str)
 {
   do {
-    eeprom_write(addr++, *str);
+    my_eeprom_write(addr++, *str);
   } while (0 != *str++);
 }
 
@@ -45,6 +45,6 @@ eeprom_read_string
 (unsigned short addr, char *str)
 {
   do {
-    *str = eeprom_read(addr++);
+    *str = my_eeprom_read(addr++);
   } while (0 != *str++);
 }

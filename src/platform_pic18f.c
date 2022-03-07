@@ -109,7 +109,7 @@ main
 (int argc, char **argv)
 {
     platform_init();
-#if 1
+#if 0
     con_init();
     printf("hello, world\r\n");
     TRISB5 = 0;

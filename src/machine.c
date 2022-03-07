@@ -38,6 +38,8 @@
 #endif //defined(PLATFORM_PICO)
 #include "flash.h"
 
+#include <XC.h>
+
 #if !defined(TEST)
 #if defined(AVR_GCC)
 # include <avr/io.h>
@@ -298,9 +300,9 @@ mount
     con_puts(buf);
     con_putsln(" ok");
     sd_fat = 1;
-    eeprom_write(16, 0);
+    my_eeprom_write(16, 0);
     eeprom_write_string(17, name);
-    eeprom_write(16, 0x88);
+    my_eeprom_write(16, 0x88);
     return;
   }
   con_putsln(" err");
@@ -367,10 +369,10 @@ prompt
     if (NULL == arg) goto usage;
     if (0 == strdcmp("on", arg, 0)) {
       con_putsln(" on");
-      eeprom_write(8, 0x88);
+      my_eeprom_write(8, 0x88);
     } else {
       con_putsln(" off");
-      eeprom_write(8, 0);
+      my_eeprom_write(8, 0);
     }
     return;
   } else if (0 == strdcmp("wp", cmd, ' ')) {
@@ -1003,7 +1005,7 @@ out
         disk_err = 0;
       } else if (1 == val && 0 == wr_prt) {
         for (i = 0; i < 128; i++) sdcard_write(off + i, sram_read(addr + i));
-        disk_err = sdcard_flush();
+        disk_err = (unsigned char)sdcard_flush();
         if (disk_err) {
           con_puts("\r\n\r\nI/O ERROR (");
           con_puthex(disk_err);
@@ -1045,7 +1047,7 @@ in
     do {
       c = con_getchar();
     } while (-1 == c);
-    return c; }
+    return (unsigned char)c; }
   case 10:
     return drive;
   case 11:
@@ -1127,14 +1129,14 @@ skip_fat:
   work.in = &in;
   work.out = &out;
 #endif // defined(CPU_EMU_C)
-  if (0x88 != eeprom_read(0)) {
+  if (0x88 != my_eeprom_read(0)) {
     con_putsln("EEPROM: init");
     unsigned int i;
-    for (i = 0; i < 256; i++) eeprom_write(i, 0);
-    eeprom_write(0, 0x88);
+    for (i = 0; i < 256; i++) my_eeprom_write(i, 0);
+    my_eeprom_write(0, 0x88);
   } else {
     con_putsln("EEPROM: load");
-    if (0x88 == eeprom_read(16)) {
+    if (0x88 == my_eeprom_read(16)) {
       char buf[8 + 1 + 3 + 1];
       eeprom_read_string(17, buf);
 #if defined(USE_FAT)
@@ -1142,7 +1144,7 @@ skip_fat:
       if (0 != sd_fat) mount(buf);
 #endif
     }
-    if (0x88 == eeprom_read(8)) boot();
+    if (0x88 == my_eeprom_read(8)) boot();
   }
 #if defined(MONITOR)
   for (;;) prompt();

@@ -68,14 +68,13 @@ static unsigned short bytes_per_sector = 512;
 static unsigned long top_of_dir;
 static unsigned long dir_entries;
 static unsigned long dir_size;
+static unsigned long dir_cluster;
 #if defined(USE_EXFAT)
 #define MAX_CLUSTERS 0xffffffff
 static unsigned long dir_offset;
-static unsigned long dir_cluster;
 #else
 #define MAX_CLUSTERS 0xffff
 static unsigned short dir_offset;
-static unsigned short dir_cluster;
 #endif //defined(USE_EXFAT)
 static unsigned long alloc_cluster;
 
@@ -118,7 +117,7 @@ static unsigned short
 read2
 (unsigned short off)
 {
-  return (sdcard_read(off + 1) <<  8) | sdcard_read(off);
+  return (unsigned short)((sdcard_read(off + 1) <<  8) | sdcard_read(off));
 }
 
 static unsigned long
@@ -134,7 +133,7 @@ fetch_cluster
 {
   unsigned long cluster_sect;
   unsigned long sector;
-  if (fat_debug) debug("fc: %ld (%0X), %ld\n", cluster, cluster, offset);
+  if (fat_debug) debug("fc: %ld (%0lX), %ld\n", cluster, cluster, offset);
   if ((cluster == last_cluster) &&
       ((offset & 0xfffffe00) == (last_offset & 0xfffffe00))) return 0;
   last_cluster = cluster;
@@ -166,7 +165,7 @@ fetch_cluster
         cluster = read4((cluster << 2) % 512);
         if ((cluster < 2) || (0x0ffffff7 <= cluster)) return -2;
       } else if (FS_FAT12 == fs_desc) {
-        unsigned int off = ((cluster) >> 1) * 3 + (cluster & 1);
+        unsigned long off = ((cluster) >> 1) * 3 + (cluster & 1);
         sec = fat_first_sect + reserved_sectors + off / 512; 
         if (sdcard_fetch_sec(sec) < 0) return -1;
         unsigned short lo = sdcard_read(off & 0x1ff);
@@ -311,7 +310,7 @@ fat_init
   // exFAT or legacy FAT?
   int exfat_flag = 1;
   // If it is exFAT, all of the following bytes are zeros
-  for (int i = 11; i < 64; ++i) {
+  for (unsigned short i = 11; i < 64; ++i) {
     if (sdcard_read(i) != 0) {
       if (fat_debug) debug("nonzero: %03X %02x\n", i, sdcard_read(i));
       exfat_flag = 0;
@@ -321,7 +320,7 @@ fat_init
   // dump
   if (fat_debug) {
     debug0("BPB sector\n");
-    for (int i = 0; i < 512; ++i) {
+    for (unsigned short i = 0; i < 512; ++i) {
       if (i % 16 == 0) {
         debug("%03X ", i);
       }
@@ -404,11 +403,11 @@ fat_init
 
   top_of_cluster = fat_first_sect + reserved_sectors + fat_sectors + rootdir_sectors;
 
-  debug("total_sectors:  %ld (%X)\n", totsec, totsec);
+  debug("total_sectors:  %ld (%lX)\n", totsec, totsec);
   debug("sec/cluster:    %ld\n", sectors_per_cluster);
-  debug("# of clusters:  %ld (%X)\n", number_of_clusters, number_of_clusters);
+  debug("# of clusters:  %ld (%lX)\n", number_of_clusters, number_of_clusters);
   debug("fat_first_sect: %ld\n", fat_first_sect);
-  debug("reserved_sectors: %ld\n", reserved_sectors);
+  debug("reserved_sectors: %d\n", reserved_sectors);
   debug("fat_sectors:    %ld\n", fat_sectors);
   debug("top_of_dir:     %ld\n", top_of_dir);
   debug("rootdir_sectors: %ld\n", rootdir_sectors);
@@ -423,7 +422,7 @@ fat_init
   }
   dir_cluster = 0;
   if (FS_FAT32 == fs_desc) {
-    dir_cluster = rootdir_cluster;
+    dir_cluster = (unsigned short)rootdir_cluster;
   }
   fat_rewind();
   return fs_desc;
@@ -521,7 +520,7 @@ do_fat_next
 (void)
 {
   static int count = 200;
-  if (fat_debug) debug("do_fat_next: dir_offset: %ld, dir_entries: %ld\n", dir_offset, dir_entries);
+  if (fat_debug) debug("do_fat_next: dir_offset: %d, dir_entries: %ld\n", dir_offset, dir_entries);
   for (dir_offset++; dir_offset < dir_entries; dir_offset++) {
     unsigned short off = dir_offset % 16;
     //if (count-- <= 0) return -1;
@@ -536,7 +535,7 @@ do_fat_next
     // FAT12,16,32
     if (0xe5 == first_char) continue; // unused entry
     if (0x0f == fat_attr()) continue; // LFN entry, we ignore it in FAT12,16,32
-    return dir_offset;
+    return (int)dir_offset;
   }
   return -1;
 }
@@ -551,7 +550,7 @@ fat_name
   len -= strlen(namebuf);
   unsigned short off = dir_offset % 16;
   unsigned char first_char;
-  int i;
+  unsigned int i;
 #if defined(USE_EXFAT)
   if (FS_EXFAT == fs_desc) {
     int len2 = strlen(namestr);
@@ -605,7 +604,7 @@ fat_chdir
 {
   unsigned short off = dir_offset % 16;
   dir_cluster = ((unsigned long)read2((off << 5) + 20) << 16) | read2((off << 5) + 26);
-  debug("chdir: new cluster: %0X (%ld)\n", dir_cluster, dir_cluster);
+  debug("chdir: new cluster: %0lX (%ld)\n", dir_cluster, dir_cluster);
   fat_rewind();
   return 0;
 }

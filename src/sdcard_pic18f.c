@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Takashi TOYOSHIMA <toyoshim@gmail.com>
+ * Copyright (c) 2022, Norihiro Kumagai <tendai22plus@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,41 +32,20 @@
 #include "hardware_config.h"
 #include "sdcard.h"
 
-#include <avr/io.h>
+#include <XC.h>
 
-#define PORT PORTC
-#define DDR  DDRC
-#define PIN  PINC
+// CS RB0
+// DI/MOSI RB1
+// DO/MISO RB2
+// CK/SCK RB3
 
-#define P_CK _BV(PINC2)
-#define P_PU _BV(PINC4)
-#define P_DO _BV(PINC4)
-
-#if defined(MCU_88)
-# define P_DI _BV(PINC3)
-# define P_CS _BV(PINC5)
-#elif defined(MCU_32U2)
-# define P_DI _BV(PINC5)
-# define P_CS _BV(PINC6)
-#elif defined(MCU_ATMEGA328)
-# define P_DI _BV(PINC3)
-# define P_CS _BV(PINC5)
-#else
-# error
-#endif
-
-#if defined(MCU_88)
-# define PIN_HIGH(x) PORT |= (x)
-# define PIN_LOW(x) PORT &= ~(x)
-#elif defined(MCU_32U2)  // emulate open-drain
-# define PIN_HIGH(x) DDR &= ~(x)
-# define PIN_LOW(x) DDR |= (x)
-#elif defined(MCU_ATMEGA328)
-# define PIN_HIGH(x) PORT |= (x)
-# define PIN_LOW(x) PORT &= ~(x)
-#else
-# error
-#endif
+#define PIN_LOW(x) (x = 0)
+#define PIN_HIGH(x) (x = 1)
+#define P_CK LATB3
+//#define P_PU _BV(PINC4)
+#define P_DO LATB2
+#define P_DI LATB1
+#define P_CS LATB0
 
 static unsigned char
 buffer[512];
@@ -102,9 +81,9 @@ sd_busy
   for (; 0 != timeout; timeout--) {
     char c;
     PIN_HIGH(P_CK);
-    c = PIN;
+    c = PORTB;
     PIN_LOW(P_CK);
-    if ((f & P_DO) == (c & P_DO)) return 0;
+    if ((f & (1<<2)) == (c & (1<<2))) return 0;
   }
   return -1;
 }
@@ -118,10 +97,10 @@ sd_in
   for (i = 0; i < n; i++) {
     char c;
     PIN_HIGH(P_CK);
-    c = PIN;
+    c = PORTB;
     PIN_LOW(P_CK);
     rc <<= 1;
-    if (c & P_DO) rc |= 1;
+    if (c & (1<<2)) rc |= 1;
   }
   return rc;
 }
@@ -158,11 +137,25 @@ sdcard_init
    * DO: in
    */
   // Port Settings
-  DDR |=  (P_CK | P_DI | P_CS);
-  PORT &= ~(P_CK | P_DI | P_CS);
+  // CS RB0 - output high
+  // DI/MOSI RB1 - output, high
+  // DO/MISO RB2 - input
+  // CK/SCK RB3 - output, low
+  ANSELB0 = 0;  // disable analog function
+  LATB0 = 1;    // CS initial value
+  TRISB0 = 0;   // set as output
 
-  DDR &= ~P_DO;
-  PORT |= P_PU;
+  ANSELB1 = 0;  // disable analog function
+  LATB1 = 1;    // DI initial value
+  TRISB1 = 0;   // set as output
+
+  ANSELB2 = 0;  // disable analog function
+//  LATB2 = 1;    // DO initial value
+  TRISB2 = 1;   // set as input
+
+  ANSELB3 = 0;  // disable analog function
+  LATB3 = 0;    // CK initial value
+  TRISB3 = 0;   // set as output
 
   cur_blk = 0;
 }
@@ -172,7 +165,8 @@ sdcard_open
 (void)
 {
   // initial clock
-  PIN_HIGH(P_DI | P_CS);
+  PIN_HIGH(P_DI);
+  PIN_HIGH(P_CS);
   int i;
   for (i = 0; i < 80; i++) {
     PIN_HIGH(P_CK);
@@ -220,13 +214,13 @@ sdcard_fetch_sec
   if (0 == ccs) blk_addr <<= 9; // SD cards use byte-offset address
   // cmd17
   unsigned long rc =
-    sd_cmd(0x51, blk_addr >> 24, blk_addr >> 16, blk_addr >> 8, blk_addr, 0x00);
+    sd_cmd(0x51, (unsigned char)(blk_addr >> 24), (unsigned char)(blk_addr >> 16), (unsigned char)(blk_addr >> 8), (unsigned char)blk_addr, 0x00);
   if (0 != rc) return -1;
   if (sd_busy(0) < 0) return -2;
   int i;
-  for (i = 0; i < 512; i++) buffer[i] = sd_in(8);
+  for (i = 0; i < 512; i++) buffer[i] = (unsigned char)sd_in(8);
   rc = sd_in(8);
-  crc = (rc << 8) | sd_in(8);
+  crc = (rc << 8) | (unsigned char)sd_in(8);
 
   // XXX: rc check
 
@@ -248,7 +242,7 @@ sdcard_store_sec
   if (0 == ccs) blk_addr <<= 9; // SD cards accecpt byte address
   // cmd24
   unsigned long rc =
-    sd_cmd(0x58, blk_addr >> 24, blk_addr >> 16, blk_addr >> 8, blk_addr, 0x00);
+    sd_cmd(0x58, (unsigned char)(blk_addr >> 24), (unsigned char)(blk_addr >> 16), (unsigned char)(blk_addr >> 8), (unsigned char)blk_addr, 0x00);
   if (0 != rc) return -1;
   sd_out(0xff); // blank 1B
   sd_out(0xfe); // Data Token

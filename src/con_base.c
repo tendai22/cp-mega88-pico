@@ -29,7 +29,7 @@
  * DAMAGE.
  */
 
-#include "con.h"
+#include "conx.h"
 #include "debug.h"
 
 static void
@@ -58,10 +58,10 @@ con_putnum_u16
     for (digit--; digit > 0; digit--) d *= 10;
   }
   do {
-    int num = n / d;
+    unsigned int num = n / d;
     n = n % d;
     d /= 10;
-    con_putchar('0' + num);
+    con_putchar((unsigned char)('0' + num));
   } while (0 != d);
 }
 

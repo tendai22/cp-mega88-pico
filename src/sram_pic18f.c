@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Takashi TOYOSHIMA <toyoshim@gmail.com>
+ * Copyright (c) 2021, Norihiro Kumagai <tendai22plus@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,20 +31,78 @@
 
 #include "sram.h"
 
-#include <avr/io.h>
+#include <XC.h>
+
+  // RA0: /OE - output
+  // RA1: /RAS - output
+  // RA2: /CASL - output
+  // RA3: /OE
+  // RD*: Address - out
+  // RC*: Data - in/out
+
+
+unsigned char
+sram_read
+(unsigned short addr)
+{
+  unsigned char data;
+  LATD = addr >> 8;
+  LATA1 = 0;    // /RAS = 0
+  LATD = addr & 0xff;
+  LATA2 = 0;    // /CASL = 0;
+  LATA3 = 0;    // /OE = 0;
+  data = PORTC;
+  LATA |= ((1<<0)|(1<<1)|(1<<2)|(1<<3));
+  return data;
+}
+
+void
+sram_write
+(unsigned short addr, unsigned char data)
+{
+  LATD = addr >> 8;
+  LATA1 = 0;    // /RAS = 0
+  LATD = addr & 0xff;
+  LATA2 = 0;    // /CASL = 0;
+  LATD = data;
+  TRISD = 0;    // RD0-7 as output;
+  LATA |= ((1<<0)|(1<<1)|(1<<2)|(1<<3));
+}
 
 void
 sram_init
 (void)
 {
-  // PB0: /W - output
-  // PB1: E2 - output
-  // PB2: A16 - output
-  // PB4: CLK for FF on Address Low - output
-  // PB5: CLK for FF on Address High - output
-  // PD*: Address / Data - in/out
-  DDRB  |=  (_BV(DDB0) | _BV(DDB1) | _BV(DDB2) | _BV(DDB4) | _BV(DDB5));
-  PORTB &=  ~(_BV(DDB0) | _BV(DDB1) | _BV(DDB2) | _BV(DDB4) | _BV(DDB5));
-  DDRD  = 0xff;
-  PORTD = 0;
+  // RA0: /OE - output
+  // RA1: /RAS - output
+  // RA2: /CASL - output
+  // RA3: /OE
+  // RD*: Address - out
+  // RC*: Data - in/out
+
+  ANSELA0 = 0;  // disable analog function
+  LATA0 = 1;    // /WE initial value
+  TRISA0 = 0;   // set as output
+
+  ANSELA1 = 0;  // disable analog function
+  LATA1 = 1;    // /WE initial value
+  TRISA1 = 0;   // set as output
+
+  ANSELA2 = 0;  // disable analog function
+  LATA2 = 1;    // /WE initial value
+  TRISA2 = 0;   // set as output
+
+  ANSELA3 = 0;  // disable analog function
+  LATA3 = 1;    // /WE initial value
+  TRISA3 = 0;   // set as output
+
+  ANSELD = 0; // disable analog function
+  WPUD = 0;   // Weak-pullup disable
+  TRISD = 0;  // Set as output
+  LATD = 0;   // initial value for address bus
+
+  ANSELC = 0; // disable analog function
+  WPUC = 0;   // Weak-pullup disable
+  TRISC = 0xff;  // Set as input
+
 }

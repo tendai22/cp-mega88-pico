@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Takashi TOYOSHIMA <toyoshim@gmail.com>
+ * Copyright (c) 2022, Norihiro Kumagai <tendai22plus@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,25 +31,39 @@
 
 #include "eeprom.h"
 
-#include <avr/io.h>
+#include <XC.h>
+
+//
+// address range: 0-255
+//
 
 void
-eeprom_write
+my_eeprom_write
 (unsigned short addr, unsigned char data)
 {
-  while (0 != (EECR & _BV(EEPE)));
-  EEAR = addr;
-  EEDR = data;
-  EECR |= _BV(EEMPE);
-  EECR |= _BV(EEPE);
+    unsigned char GIEBitValue = INTCON0bits.GIE;
+    NVMADR = addr;
+    NVMDATL = data;
+    NVMCON1bits.CMD = 0x03;
+    INTCON0bits.GIE = 0;
+    NVMLOCK = 0x55;
+    NVMLOCK = 0xaa;
+    NVMCON0bits.GO = 1;
+    while (NVMCON0bits.GO);
+//    if (NVMCON1bits.WRERR) {
+        // write fault recovery
+//    }
+    INTCON0bits.GIE = GIEBitValue;
+    NVMCON1bits.CMD = 0;
 }
 
 unsigned char
-eeprom_read
+my_eeprom_read
 (unsigned short addr)
 {
-  while (0 != (EECR & _BV(EEPE)));
-  EEAR = addr;
-  EECR |= _BV(EERE);
-  return EEDR;
+    NVMADR = addr;
+    NVMCON1bits.CMD = 0;
+    NVMCON0bits.GO = 1;
+    while (NVMCON0bits.GO);
+    return NVMDATL;
 }
